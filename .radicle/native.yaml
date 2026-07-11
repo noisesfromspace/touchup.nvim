@@ -49,4 +49,4 @@ shell: |
   git fetch github || true
 
   # Push to GitHub Mirror
-  git push --force github HEAD:master
+  git push --force github HEAD:main
