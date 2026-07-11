@@ -1,6 +1,6 @@
 # touchup.nvim
 
-Tiny markdown tweaks that don't shift your layout. List bullets get depth-aware icons, checkboxes get state indicators, code blocks get a background. Everything uses overlays: icons sit on top of markers, your text never moves a column.
+Tiny markdown tweaks that don't shift your layout. List bullets get depth-aware icons, checkboxes get state indicators, code blocks get a background. Everything uses overlays: icons sit on top of markers, your text jumps out of sight.
 
 No hidden URLs, no resized headings, no conceal jumping. Tables and alignment are the formatter's job. Pair this with [mdformat](https://github.com/hukkin/mdformat) and [mdformat-space-control](https://github.com/jdmonaco/mdformat-space-control).
 
