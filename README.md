@@ -13,6 +13,8 @@ No hidden URLs, no resized headings, no conceal jumping. Tables and alignment ar
 - **H1 and H2** get underline styling without hiding the # markers.
 - **Block quotes** keep whatever your colorscheme gives them.
 
+<img width="1512" height="800" alt="screenshot_2026-07-15_16:19:36" src="https://github.com/user-attachments/assets/0df25997-8ffd-48de-9f47-40fd84d7112a" />
+
 ## Install
 
 ```lua
