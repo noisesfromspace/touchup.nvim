@@ -6,12 +6,14 @@ No hidden URLs, no resized headings, no conceal jumping. Tables and alignment ar
 
 ## What it does
 
-- **List bullets** get icons that change with nesting depth (✸ ✿ ✦ ✧). Checkbox and numbered lists stay as-is.
-- **Checkboxes** show state icons inside [ ] without concealing brackets 
+- **List bullets** get icons that change with nesting depth (✸ ✿ ✦ ✧), "We have org mode at home".jpg
+- **Checkboxes** show state icons inside [ ] without concealing brackets or jumping text.
 - **Code blocks** get a subtle background.
 - **Hitting Enter** on a list item auto-continues at the same level. Press Enter on an empty item to exit.
 - **H1 and H2** get underline styling without hiding the # markers.
-- **Block quotes** turn cursive and keep whatever your colorscheme gives them.
+- **Block quotes** are transformed to cursive.
+
+<img width="1283" height="925" alt="screenshot_2026-07-15_16:31:41" src="https://github.com/user-attachments/assets/b4184109-1c16-4b00-944d-aa2639cd9f7a" />
 
 ## Install
 
