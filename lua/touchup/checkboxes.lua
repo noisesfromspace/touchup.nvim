@@ -1,5 +1,8 @@
 local M = {}
 
+local api = vim.api
+
+-- Obsidian-style checkbox states
 local icons = {
   [" "] = { text = "󰄰", hl = "TouchupCheckboxUnchecked" },
   ["x"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
@@ -26,56 +29,57 @@ local icons = {
   ["d"] = { text = "󰔳", hl = "TouchupCheckboxUnchecked" },
 }
 
-local parse = vim.treesitter.query and vim.treesitter.query.parse or vim.treesitter.parse_query
 local query
 
+---Render checkbox state icons for a range. Called from the decoration provider,
+---so extmarks are ephemeral and root is the shared parse tree.
 function M.render(ns, bufnr, start_row, end_row, root)
   if not query then
-    local parse = vim.treesitter.query and vim.treesitter.query.parse or vim.treesitter.parse_query
-    query = parse("markdown", "[(task_list_marker_unchecked) (task_list_marker_checked)] @checkbox")
+    query = vim.treesitter.query.parse(
+      "markdown",
+      "[(task_list_marker_unchecked) (task_list_marker_checked)] @checkbox"
+    )
   end
 
-  if not root then
-    local parser = vim.treesitter.get_parser(bufnr, "markdown", {})
-    if not parser then return end
-    local trees = parser:parse(); root = trees and trees[1] and trees[1]:root()
-  end
-  if not root then return end
+  local lines = api.nvim_buf_get_lines(bufnr, start_row, end_row, false)
 
-  -- Treesitter: [ ] and [x]
+  -- Treesitter states: [ ] and [x]
   for _, node in query:iter_captures(root, bufnr, start_row, end_row) do
-      local row, c0, _, c1 = node:range()
-      local lines = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)
-      local ch = (lines and lines[1] and lines[1]:sub(c0 + 2, c0 + 2)) or " "
+    local row, c0 = node:range()
+    local ch = (lines[row - start_row + 1] or ""):sub(c0 + 2, c0 + 2)
+    local cfg = icons[ch]
+    if cfg then
+      api.nvim_buf_set_extmark(bufnr, ns, row, c0 + 1, {
+        end_col = c0 + 2,
+        virt_text = { { cfg.text, cfg.hl } },
+        virt_text_pos = "overlay",
+        ephemeral = true,
+      })
+    end
+  end
+
+  -- Custom states ([!], [<], ...) that treesitter doesn't parse as task markers.
+  -- The match ends at ']', so the state char is at e-1 (1-based).
+  for i, line in ipairs(lines) do
+    local _, e, ch = line:find("^%s*[-*+]%s+%[(.)%]")
+    if ch and not (ch == " " or ch == "x" or ch == "X") then
       local cfg = icons[ch]
       if cfg then
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row, c0 + 1, {
-          end_col = c0 + 2,
+        local row = start_row + i - 1
+        -- Custom states parse as shortcut links; kill the link underline.
+        -- Priority 200 beats treesitter (100) and LSP semantic tokens (125).
+        api.nvim_buf_set_extmark(bufnr, ns, row, e - 3, {
+          end_col = e,
+          hl_group = "TouchupCheckboxBracket",
+          priority = 200,
+          ephemeral = true,
+        })
+        api.nvim_buf_set_extmark(bufnr, ns, row, e - 2, {
+          end_col = e - 1,
           virt_text = { { cfg.text, cfg.hl } },
           virt_text_pos = "overlay",
           ephemeral = true,
         })
-      end
-    end
-
-  -- Line scan: custom states ([!], [<], etc.) — overlay icon, kill link underline on brackets
-  for row = start_row, end_row do
-    local lines = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)
-    local line = lines and lines[1] or ""
-    local _, _, ch = line:find("^%s*[-*+]%s+%[(.)%]")
-    if ch and not (ch == " " or ch == "x" or ch == "X") then
-      local cb0 = line:find("%[") -- 1-based position of [
-      if cb0 then
-        local cfg = icons[ch]
-        if cfg then
-          -- Icon on middle char
-          pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row, cb0, {
-            end_col = cb0 + 1,
-            virt_text = { { cfg.text, cfg.hl } },
-            virt_text_pos = "overlay",
-            ephemeral = true,
-          })
-        end
       end
     end
   end

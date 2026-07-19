@@ -1,6 +1,6 @@
 local M = {}
 
-local api, treesitter = vim.api, vim.treesitter
+local api = vim.api
 
 local config = require("touchup.config")
 local hl = require("touchup.hl")
@@ -27,7 +27,9 @@ function M.setup(user)
     })
   end
 
-  -- Decoration provider
+  -- Decoration provider: parse treesitter once per window redraw, share the
+  -- tree across all modules. on_win alone covers every drawn line, so no
+  -- on_line callback is needed.
   api.nvim_set_decoration_provider(NAMESPACE, {
     on_start = function(_, tick)
       local buf = api.nvim_get_current_buf()
@@ -42,10 +44,12 @@ function M.setup(user)
         return false
       end
 
-      -- Parse treesitter once, share across all modules
       local parser = vim.treesitter.get_parser(bufnr, "markdown", {})
       local trees = parser and parser:parse()
       local root = trees and trees[1] and trees[1]:root()
+      if not root then
+        return false
+      end
 
       if cfg.bullets.enabled then
         bullets.render(NAMESPACE, bufnr, cfg.bullets.icons, topline, botline, root)
@@ -55,17 +59,9 @@ function M.setup(user)
         codeblocks.render(NAMESPACE, bufnr, topline, botline, root)
       end
 
-      checkboxes.render(NAMESPACE, bufnr, topline, botline, root)
-    end,
-    on_line = function(_, _, bufnr, row)
-      if vim.bo[bufnr].filetype ~= "markdown" then
-        return false
+      if cfg.checkboxes.enabled then
+        checkboxes.render(NAMESPACE, bufnr, topline, botline, root)
       end
-
-      if cfg.bullets.enabled then
-        bullets.render(NAMESPACE, bufnr, cfg.bullets.icons, row, row + 1)
-      end
-      checkboxes.render(NAMESPACE, bufnr, row, row + 1)
     end,
   })
 end

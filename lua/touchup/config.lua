@@ -8,9 +8,8 @@ M.defaults = {
   code_blocks = {
     enabled = true,
   },
-  headings = {
-    h1 = { bold = true, underline = true },
-    h2 = { underline = true },
+  checkboxes = {
+    enabled = true,
   },
   enter = {
     enabled = true,

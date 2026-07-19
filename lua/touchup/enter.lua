@@ -1,47 +1,50 @@
 local M = {}
 
+local api = vim.api
+
+---Continue a list item on <CR>: "- item" -> "- ", a checkbox item always
+---continues unchecked. <CR> on an empty item exits the list. Outside list
+---items this falls through to a plain <CR>.
+---Buffer edits are deferred with vim.schedule: changing text during expr
+---mapping evaluation is not allowed (E565).
+local function smart_enter()
+  local cursor = api.nvim_win_get_cursor(0)
+  local row, col = cursor[1], cursor[2]
+  local line = api.nvim_get_current_line()
+
+  -- Checkbox form first; gsub normalizes any state to unchecked
+  local prefix = line:match("^(%s*[-*+]%s*%[.%]%s*)") or line:match("^(%s*[-*+]%s*)")
+  if not prefix or col < #prefix then
+    return "<CR>"
+  end
+
+  if line:sub(#prefix + 1) == "" then
+    -- Empty item: exit the list
+    vim.schedule(function()
+      api.nvim_set_current_line("")
+      api.nvim_win_set_cursor(0, { row, 0 })
+    end)
+    return ""
+  end
+
+  local cont = prefix:gsub("%[.%]", "[ ]", 1)
+  local before, rest = line:sub(1, col), line:sub(col + 1)
+  vim.schedule(function()
+    api.nvim_set_current_line(before)
+    api.nvim_buf_set_lines(0, row, row, false, { cont .. rest })
+    api.nvim_win_set_cursor(0, { row + 1, #cont + #rest })
+  end)
+  return ""
+end
+
 ---Setup smart list Enter keymap for a markdown buffer
 ---@param bufnr integer
 function M.setup(bufnr)
-  vim.keymap.set("i", "<CR>", function()
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local row, col = cursor[1], cursor[2]
-    local line = vim.api.nvim_get_current_line()
-    local indent, marker = line:match("^(%s*)([-*+])")
-    if not indent then
-      local keys = vim.api.nvim_replace_termcodes("<CR>", true, false, true)
-      return vim.api.nvim_feedkeys(keys, "n", false)
-    end
-    local marker_end = #indent + 2
-    local after = line:sub(marker_end + 1)
-    if after == "" and col >= marker_end then
-      vim.api.nvim_set_current_line("")
-      vim.api.nvim_win_set_cursor(0, { row, 0 })
-    elseif col > marker_end then
-      local before = line:sub(1, col)
-      local rest = line:sub(col + 1)
-      vim.api.nvim_set_current_line(before)
-      local new_line = indent .. marker .. " " .. rest
-      vim.api.nvim_buf_set_lines(0, row, row, false, { new_line })
-      vim.api.nvim_win_set_cursor(0, { row + 1, #new_line })
-      vim.schedule(function()
-        local p = vim.treesitter.get_parser(0, "markdown")
-        if p then
-          p:parse()
-        end
-      end)
-    else
-      local new_line = indent .. marker .. " "
-      vim.api.nvim_buf_set_lines(0, row, row, false, { new_line })
-      vim.api.nvim_win_set_cursor(0, { row + 1, #new_line })
-      vim.schedule(function()
-        local p = vim.treesitter.get_parser(0, "markdown")
-        if p then
-          p:parse()
-        end
-      end)
-    end
-  end, { buffer = bufnr, desc = "Smart list Enter" })
+  vim.keymap.set("i", "<CR>", smart_enter, {
+    buffer = bufnr,
+    expr = true,
+    desc = "Smart list Enter",
+  })
 end
 
 return M
