@@ -4,7 +4,7 @@ Markdown improvements that don't move your text around.
 
 Most markdown plugins make notes prettier by hiding things: URLs collapse, headings resize, `**` markers vanish until the cursor lands on them. touchup goes the other way. Icons, backgrounds and colors are drawn on top of the text you typed, so the buffer never reflows and nothing jumps when you move the cursor.
 
-<img width="1283" height="925" alt="screenshot_2026-07-15_16:31:41" src="https://github.com/user-attachments/assets/b4184109-1c16-4b00-944d-aa2639cd9f7a" />
+<img width="875" height="1036" alt="image" src="https://github.com/user-attachments/assets/acede6a0-4c18-41fe-a8af-a3a89ed1f4e6" />
 
 ## What it does
 
