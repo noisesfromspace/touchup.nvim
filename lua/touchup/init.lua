@@ -73,10 +73,10 @@ function M.setup(user)
       end
 
       if cfg.markers.enabled then
+        -- parse(true): a child tree returns no trees from a bare parse(),
+        -- and the result is one tree per inline region
         local inline = parser:children().markdown_inline
-        local itrees = inline and inline:parse()
-        local iroot = itrees and itrees[1] and itrees[1]:root()
-        markers.render(NAMESPACE, bufnr, topline, last, iroot)
+        markers.render(NAMESPACE, bufnr, topline, last, inline and inline:parse(true))
       end
     end,
   })
