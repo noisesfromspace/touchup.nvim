@@ -66,17 +66,24 @@ function M.render(ns, bufnr, start_row, end_row, root)
       local cfg = icons[ch]
       if cfg then
         local row = start_row + i - 1
-        -- Custom states parse as shortcut links; kill the link underline.
-        -- Priority 200 beats treesitter (100) and LSP semantic tokens (125).
+        -- Custom states parse as shortcut links and get underlined by the
+        -- colorscheme. Highlight combining cannot remove an underline, so
+        -- replace the bracket cells with overlay virt_text instead.
         api.nvim_buf_set_extmark(bufnr, ns, row, e - 3, {
-          end_col = e,
-          hl_group = "TouchupCheckboxBracket",
-          priority = 200,
+          end_col = e - 2,
+          virt_text = { { "[", "TouchupCheckboxBracket" } },
+          virt_text_pos = "overlay",
           ephemeral = true,
         })
         api.nvim_buf_set_extmark(bufnr, ns, row, e - 2, {
           end_col = e - 1,
           virt_text = { { cfg.text, cfg.hl } },
+          virt_text_pos = "overlay",
+          ephemeral = true,
+        })
+        api.nvim_buf_set_extmark(bufnr, ns, row, e - 1, {
+          end_col = e,
+          virt_text = { { "]", "TouchupCheckboxBracket" } },
           virt_text_pos = "overlay",
           ephemeral = true,
         })

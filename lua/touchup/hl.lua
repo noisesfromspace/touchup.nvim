@@ -13,8 +13,8 @@ function M.setup()
   set(0, "TouchupCheckboxCancelled", { link = "Comment", default = true })
   set(0, "TouchupCheckboxImportant", { link = "DiagnosticError", default = true })
   set(0, "TouchupCheckboxProgress", { link = "DiagnosticInfo", default = true })
-  -- Custom checkbox states parse as shortcut links; a fully-specified group
-  -- replaces the link highlight (a bare underline = false does not)
+  -- Custom checkbox states parse as shortcut links; brackets are redrawn as
+  -- overlay virt_text in this group so no link underline shows
   set(0, "TouchupCheckboxBracket", { link = "Normal", default = true })
   set(0, "@markup.quote", { italic = true, default = true })
   set(0, "@markup.heading.1.markdown", { bold = true, underline = true, default = true })
