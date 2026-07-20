@@ -1,20 +1,27 @@
 # touchup.nvim
 
-Tiny markdown tweaks that don't shift your layout. List bullets get depth-aware icons, checkboxes get state indicators, code blocks get a background. Everything uses overlays: icons sit on top of markers, your text **never** jumps out of sight.
+Markdown improvements that don't move your text around.
 
-No hidden URLs, no resized headings, no conceal jumping. Tables and alignment are the formatter's job. Pair this with [mdformat](https://github.com/hukkin/mdformat) and [mdformat-space-control](https://github.com/jdmonaco/mdformat-space-control) for table support.
+Most markdown plugins make notes prettier by hiding things: URLs collapse, headings resize, `**` markers vanish until the cursor lands on them. touchup goes the other way. Icons, backgrounds and colors are drawn on top of the text you typed, so the buffer never reflows and nothing jumps when you move the cursor.
+
+<img width="1283" height="925" alt="screenshot_2026-07-15_16:31:41" src="https://github.com/user-attachments/assets/b4184109-1c16-4b00-944d-aa2639cd9f7a" />
 
 ## What it does
 
-- **List bullets** get icons that change with nesting depth (✸ ✿ ✦ ✧), "We have org mode at home".jpg
-- **Checkboxes** show obsidian-style state icons inside [ ] without concealing brackets or jumping text.
-- **Code blocks** get a subtle background.
-- **Emphasis markers** (**, *, ~~, `) are dimmed, never concealed.
-- **Hitting Enter** on a list item auto-continues at the same level (checkboxes continue unchecked). Press Enter on an empty item to exit.
-- **H1 and H2** get underline styling without hiding the # markers.
-- **Block quotes** get a subtle background and cursive text.
+- List bullets get icons that change with nesting depth (✸ ✿ ✦ ✧). "We have org mode at home".jpg
+- Checkboxes show obsidian-style state icons inside the brackets: `[x]`, `[ ]`, `[!]`, `[>]` and more.
+- Code blocks and block quotes get a subtle background. Quotes also render in cursive.
+- `**`, `~~` and backtick markers are dimmed, not hidden. They stay visible, they just stop shouting.
+- H1 and H2 get underlines. The `#` markers stay where they are.
+- Enter continues a list item (a checkbox item continues unchecked). Enter on an empty item exits the list.
 
-<img width="1283" height="925" alt="screenshot_2026-07-15_16:31:41" src="https://github.com/user-attachments/assets/b4184109-1c16-4b00-944d-aa2639cd9f7a" />
+## What it won't do
+
+- Conceal URLs, syntax markers or anything else you typed.
+- Format tables. Alignment is a formatter's job.
+- Completions, diagnostics or wiki links. That is an LSP's job.
+
+Needs the `markdown` and `markdown_inline` treesitter parsers.
 
 ## Install
 
@@ -24,18 +31,24 @@ No hidden URLs, no resized headings, no conceal jumping. Tables and alignment ar
 
 ## Config
 
+Everything below is the default; pass only what you want to change.
+
 ```lua
 require("touchup").setup({
-  bullets = { icons = { "✸", "✿", "✦", "✧" } },
-  code_blocks = { enabled = true },
+  bullets = { enabled = true, icons = { "✸", "✿", "✦", "✧" } },
   checkboxes = { enabled = true },
+  code_blocks = { enabled = true },
   markers = { enabled = true },
   quotes = { enabled = true },
   enter = { enabled = true },
 })
 ```
 
+All highlight groups are defined with `default = true`, so your colorscheme wins. Override any `Touchup*` group if you want different colors.
+
 ## The rest of the stack
+
+touchup only decorates. This is the setup it is built to sit next to:
 
 | Tool                                                                         | Does                                             |
 | ---------------------------------------------------------------------------- | ------------------------------------------------ |
