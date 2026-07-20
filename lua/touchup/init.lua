@@ -7,6 +7,7 @@ local hl = require("touchup.hl")
 local bullets = require("touchup.bullets")
 local codeblocks = require("touchup.codeblocks")
 local checkboxes = require("touchup.checkboxes")
+local markers = require("touchup.markers")
 local enter = require("touchup.enter")
 
 local NAMESPACE = api.nvim_create_namespace("touchup")
@@ -64,6 +65,13 @@ function M.setup(user)
 
       if cfg.checkboxes.enabled then
         checkboxes.render(NAMESPACE, bufnr, topline, last, root)
+      end
+
+      if cfg.markers.enabled then
+        local inline = parser:children().markdown_inline
+        local itrees = inline and inline:parse()
+        local iroot = itrees and itrees[1] and itrees[1]:root()
+        markers.render(NAMESPACE, bufnr, topline, last, iroot)
       end
     end,
   })

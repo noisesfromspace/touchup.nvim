@@ -9,6 +9,7 @@ No hidden URLs, no resized headings, no conceal jumping. Tables and alignment ar
 - **List bullets** get icons that change with nesting depth (✸ ✿ ✦ ✧), "We have org mode at home".jpg
 - **Checkboxes** show obsidian-style state icons inside [ ] without concealing brackets or jumping text.
 - **Code blocks** get a subtle background.
+- **Emphasis markers** (**, *, ~~, `) are dimmed, never concealed.
 - **Hitting Enter** on a list item auto-continues at the same level (checkboxes continue unchecked). Press Enter on an empty item to exit.
 - **H1 and H2** get underline styling without hiding the # markers.
 - **Block quotes** are transformed to cursive.
@@ -28,6 +29,7 @@ require("touchup").setup({
   bullets = { icons = { "✸", "✿", "✦", "✧" } },
   code_blocks = { enabled = true },
   checkboxes = { enabled = true },
+  markers = { enabled = true },
   enter = { enabled = true },
 })
 ```

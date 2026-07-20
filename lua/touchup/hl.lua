@@ -16,6 +16,7 @@ function M.setup()
   -- Custom checkbox states parse as shortcut links; brackets are redrawn as
   -- overlay virt_text in this group so no link underline shows
   set(0, "TouchupCheckboxBracket", { link = "Normal", default = true })
+  set(0, "TouchupDim", { link = "NonText", default = true })
   set(0, "@markup.quote", { italic = true, default = true })
   set(0, "@markup.heading.1.markdown", { bold = true, underline = true, default = true })
   set(0, "@markup.heading.2.markdown", { underline = true, default = true })

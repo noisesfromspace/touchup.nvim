@@ -11,6 +11,9 @@ M.defaults = {
   checkboxes = {
     enabled = true,
   },
+  markers = {
+    enabled = true,
+  },
   enter = {
     enabled = true,
   },
