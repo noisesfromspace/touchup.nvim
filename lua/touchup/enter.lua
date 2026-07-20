@@ -12,8 +12,10 @@ local function smart_enter()
   local row, col = cursor[1], cursor[2]
   local line = api.nvim_get_current_line()
 
-  -- Checkbox form first; gsub normalizes any state to unchecked
-  local prefix = line:match("^(%s*[-*+]%s*%[.%]%s*)") or line:match("^(%s*[-*+]%s*)")
+  -- Checkbox form first; gsub normalizes any state to unchecked.
+  -- The marker must be followed by whitespace, or **bold** lines
+  -- would look like a list item to us.
+  local prefix = line:match("^(%s*[-*+]%s+%[.%]%s*)") or line:match("^(%s*[-*+]%s+)")
   if not prefix or col < #prefix then
     return "<CR>"
   end
