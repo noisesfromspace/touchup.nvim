@@ -4,7 +4,7 @@ local api = vim.api
 
 -- Obsidian-style checkbox states
 local icons = {
-  [" "] = { text = "󰄰", hl = "TouchupCheckboxUnchecked" },
+  -- unchecked renders as a plain space (no icon)
   ["x"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
   ["X"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
   ["/"] = { text = "󱎖", hl = "TouchupCheckboxPending" },

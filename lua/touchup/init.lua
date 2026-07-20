@@ -51,16 +51,19 @@ function M.setup(user)
         return false
       end
 
+      -- botline is the last drawn line, inclusive; render ranges are exclusive
+      local last = botline + 1
+
       if cfg.bullets.enabled then
-        bullets.render(NAMESPACE, bufnr, cfg.bullets.icons, topline, botline, root)
+        bullets.render(NAMESPACE, bufnr, cfg.bullets.icons, topline, last, root)
       end
 
       if cfg.code_blocks.enabled then
-        codeblocks.render(NAMESPACE, bufnr, topline, botline, root)
+        codeblocks.render(NAMESPACE, bufnr, topline, last, root)
       end
 
       if cfg.checkboxes.enabled then
-        checkboxes.render(NAMESPACE, bufnr, topline, botline, root)
+        checkboxes.render(NAMESPACE, bufnr, topline, last, root)
       end
     end,
   })
