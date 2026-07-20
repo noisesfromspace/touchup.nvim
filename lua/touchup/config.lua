@@ -14,6 +14,9 @@ M.defaults = {
   markers = {
     enabled = true,
   },
+  quotes = {
+    enabled = true,
+  },
   enter = {
     enabled = true,
   },

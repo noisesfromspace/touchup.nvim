@@ -12,7 +12,7 @@ No hidden URLs, no resized headings, no conceal jumping. Tables and alignment ar
 - **Emphasis markers** (**, *, ~~, `) are dimmed, never concealed.
 - **Hitting Enter** on a list item auto-continues at the same level (checkboxes continue unchecked). Press Enter on an empty item to exit.
 - **H1 and H2** get underline styling without hiding the # markers.
-- **Block quotes** are transformed to cursive.
+- **Block quotes** get a subtle background and cursive text.
 
 <img width="1283" height="925" alt="screenshot_2026-07-15_16:31:41" src="https://github.com/user-attachments/assets/b4184109-1c16-4b00-944d-aa2639cd9f7a" />
 
@@ -30,6 +30,7 @@ require("touchup").setup({
   code_blocks = { enabled = true },
   checkboxes = { enabled = true },
   markers = { enabled = true },
+  quotes = { enabled = true },
   enter = { enabled = true },
 })
 ```
