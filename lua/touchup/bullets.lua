@@ -55,8 +55,12 @@ function M.render(ns, bufnr, icons, start_row, end_row, root)
       for _, node in ipairs(nodes) do
         local row, c0, _, c1 = node:range()
         if not is_task(node, lines[row - start_row + 1] or "") then
+          -- The marker node of a first nested item can start in the
+          -- indentation; align the icon to the actual marker char
+          local text = vim.treesitter.get_node_text(node, bufnr)
+          local mc0 = c0 + #(text:match("^%s*") or "")
           local icon = icons[(list_level(node) - 1) % #icons + 1]
-          api.nvim_buf_set_extmark(bufnr, ns, row, c0, {
+          api.nvim_buf_set_extmark(bufnr, ns, row, mc0, {
             end_col = c1,
             virt_text = { { icon .. " ", hl_map[node:type()] or "TouchupBulletDash" } },
             virt_text_pos = "overlay",
