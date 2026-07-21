@@ -12,6 +12,7 @@ local quotes = require("touchup.quotes")
 local enter = require("touchup.enter")
 
 local NAMESPACE = api.nvim_create_namespace("touchup")
+local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
 local ticks = {}
 
 ---@param user? table
@@ -22,6 +23,7 @@ function M.setup(user)
   -- Smart Enter
   if cfg.enter.enabled then
     api.nvim_create_autocmd("FileType", {
+      group = GROUP,
       pattern = "markdown",
       callback = function(args)
         enter.setup(args.buf)
@@ -46,8 +48,12 @@ function M.setup(user)
         return false
       end
 
-      local parser = vim.treesitter.get_parser(bufnr, "markdown", {})
-      local trees = parser and parser:parse()
+      -- get_parser throws if the markdown grammar isn't installed
+      local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "markdown")
+      if not ok then
+        return false
+      end
+      local trees = parser:parse()
       local root = trees and trees[1] and trees[1]:root()
       if not root then
         return false
@@ -73,8 +79,9 @@ function M.setup(user)
       end
 
       if cfg.markers.enabled then
-        -- parse(true): a child tree returns no trees from a bare parse(),
-        -- and the result is one tree per inline region
+        -- parse(true): on Neovim 0.12 a bare parse() on an injected child
+        -- tree returns no trees; true forces a full parse (also one tree per
+        -- inline region, so all must be iterated).
         local inline = parser:children().markdown_inline
         markers.render(NAMESPACE, bufnr, topline, last, inline and inline:parse(true), root)
       end
