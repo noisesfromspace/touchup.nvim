@@ -76,7 +76,7 @@ function M.setup(user)
         -- parse(true): a child tree returns no trees from a bare parse(),
         -- and the result is one tree per inline region
         local inline = parser:children().markdown_inline
-        markers.render(NAMESPACE, bufnr, topline, last, inline and inline:parse(true))
+        markers.render(NAMESPACE, bufnr, topline, last, inline and inline:parse(true), root)
       end
     end,
   })
