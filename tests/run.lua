@@ -2,6 +2,10 @@
 --
 -- Run: nvim --headless --clean '+lua vim.opt.rtp:prepend(".")' -l tests/run.lua
 
+-- Disable JIT: CI kernel blocks mprotect (restricted kernel)
+
+jit.off()
+
 local failures = 0
 local checks = 0
 

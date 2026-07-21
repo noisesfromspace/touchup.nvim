@@ -36,8 +36,9 @@ shell: |
 
   echo "Commit signed by authorized GPG key"
 
-  # Run tests (pure logic, no parsers needed)
-  nvim --headless --clean '+lua vim.opt.rtp:prepend(".")' -l tests/run.lua
+  # Run tests (pure logic, no parsers needed). LUAJIT_DISABLE_JIT=1
+  # stops LuaJIT's code generation before it hits the kernel lockdown.
+  LUAJIT_DISABLE_JIT=1 nvim --headless --clean '+lua vim.opt.rtp:prepend(".")' -l tests/run.lua
 
   # Configure GitHub remote
   GITHUB_REPO="https://oauth2:${GITHUB_TOKEN}@github.com/noisesfromspace/touchup.nvim.git"
