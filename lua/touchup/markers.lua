@@ -25,8 +25,19 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
       local srow, scol, erow, ecol = node:range()
       if srow == erow then
         local text = vim.treesitter.get_node_text(node, bufnr)
-        local lead = #(text:match("^[*_~`]+") or "")
-        local trail = #(text:match("[*_~`]+$") or "")
+        -- Delimiter characters are specific to the node type, or `` `**` ``
+        -- would dim the asterisks as if they were part of the backtick run.
+        local ds
+        local ntype = node:type()
+        if ntype == "code_span" then
+          ds = "`"
+        elseif ntype == "strikethrough" then
+          ds = "~"
+        else
+          ds = "*_"
+        end
+        local lead = #(text:match("^[" .. ds .. "]+") or "")
+        local trail = #(text:match("[" .. ds .. "]+$") or "")
 
         -- Don't dim inside headings: the styling is strong enough and
         -- decoupling underline color from text color is unreliable across
