@@ -11,7 +11,7 @@ Most markdown plugins make notes prettier by hiding things: URLs collapse, multi
 - List bullets get icons that change with nesting depth (✸ ✿ ✦ ✧). _"We have org mode at home".jpg_
 - Checkboxes show obsidian-style state icons inside the brackets: `[x]`, `[ ]`, `[!]`, `[>]` and more.
 - Code blocks and block quotes get a subtle background. Quotes also render in cursive.
-- `**`, `~~` and backtick markers are dimmed, not hidden. 
+- `**`, `~~` and backtick markers are dimmed, not hidden.
 - H1 and H2 get underlines. The `#` markers stay where they are.
 - Enter continues a list item (a checkbox item continues unchecked). Enter on an empty item exits the list.
 
@@ -51,9 +51,8 @@ All highlight groups are defined with `default = true`, so your colorscheme wins
 
 touchup only decorates. This is the setup it is built to sit next to:
 
-| Tool                                                                         | Does                                             |
-| ---------------------------------------------------------------------------- | ------------------------------------------------ |
-| [markdown-oxide](https://github.com/Feel-ix-343/markdown-oxide)              | LSP: completions, diagnostics, symbol navigation |
-| [mdformat](https://github.com/hukkin/mdformat)                               | Formats markdown consistently                    |
-| [mdformat-space-control](https://github.com/jdmonaco/mdformat-space-control) | Keeps lists tight, no random blank lines         |
-| [conform.nvim](https://github.com/stevearc/conform.nvim)                     | Runs mdformat on save                            |
+| Tool                                                            | Does                                             |
+| --------------------------------------------------------------- | ------------------------------------------------ |
+| [markdown-oxide](https://github.com/Feel-ix-343/markdown-oxide) | LSP: completions, diagnostics, symbol navigation |
+| [mdformat](https://github.com/hukkin/mdformat)                  | Formats markdown, including tables, consistently |
+| [conform.nvim](https://github.com/stevearc/conform.nvim)        | Runs mdformat on save                            |
