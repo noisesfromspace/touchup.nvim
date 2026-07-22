@@ -55,5 +55,5 @@ touchup only decorates. This is the setup it is built to sit next to:
 | Tool                                                            | Does                                             |
 | --------------------------------------------------------------- | ------------------------------------------------ |
 | [markdown-oxide](https://github.com/Feel-ix-343/markdown-oxide) | LSP: completions, diagnostics, symbol navigation |
-| [mdformat](https://github.com/hukkin/mdformat)                  | Formats markdown, including tables, consistently |
+| [mdformat](https://github.com/hukkin/mdformat)                  | Formats markdown, including tables               |
 | [conform.nvim](https://github.com/stevearc/conform.nvim)        | Runs mdformat on save                            |
