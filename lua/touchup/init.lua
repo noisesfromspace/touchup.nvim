@@ -24,7 +24,7 @@ function M.setup(user)
   if cfg.enter.enabled then
     api.nvim_create_autocmd("FileType", {
       group = GROUP,
-      pattern = "markdown",
+      pattern = cfg.filetypes,
       callback = function(args)
         enter.setup(args.buf)
       end,
@@ -44,7 +44,7 @@ function M.setup(user)
       return true
     end,
     on_win = function(_, _, bufnr, topline, botline)
-      if vim.bo[bufnr].filetype ~= "markdown" then
+      if not vim.tbl_contains(cfg.filetypes, vim.bo[bufnr].filetype) then
         return false
       end
 

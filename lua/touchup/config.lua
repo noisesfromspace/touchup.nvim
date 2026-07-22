@@ -1,6 +1,7 @@
 local M = {}
 
 M.defaults = {
+  filetypes = { "markdown" },
   bullets = {
     enabled = true,
     icons = { "✸", "✿", "✦", "✧" },

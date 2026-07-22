@@ -36,6 +36,7 @@ Everything below is the default; pass only what you want to change.
 
 ```lua
 require("touchup").setup({
+  filetypes = { "markdown" },
   bullets = { enabled = true, icons = { "✸", "✿", "✦", "✧" } },
   checkboxes = { enabled = true },
   code_blocks = { enabled = true },
