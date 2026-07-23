@@ -9,6 +9,7 @@ local codeblocks = require("touchup.codeblocks")
 local checkboxes = require("touchup.checkboxes")
 local markers = require("touchup.markers")
 local quotes = require("touchup.quotes")
+local admonitions = require("touchup.admonitions")
 local links = require("touchup.links")
 local enter = require("touchup.enter")
 
@@ -77,6 +78,10 @@ function M.setup(user)
 
 			if cfg.quotes.enabled then
 				quotes.render(NAMESPACE, bufnr, topline, last, root)
+			end
+
+			if cfg.admonitions.enabled then
+				admonitions.render(NAMESPACE, bufnr, topline, last, root)
 			end
 
 			-- parse(true): on Neovim 0.12 a bare parse() on an injected child

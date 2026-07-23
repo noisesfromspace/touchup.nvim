@@ -18,6 +18,9 @@ M.defaults = {
 	quotes = {
 		enabled = true,
 	},
+	admonitions = {
+		enabled = true,
+	},
 	links = {
 		enabled = true,
 	},

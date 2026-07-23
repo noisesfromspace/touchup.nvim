@@ -42,6 +42,7 @@ ok(cfg.markers.enabled == true, "markers default enabled")
 ok(cfg.quotes.enabled == true, "quotes default enabled")
 ok(cfg.enter.enabled == true, "enter default enabled")
 ok(cfg.links.enabled == true, "links default enabled")
+ok(cfg.admonitions.enabled == true, "admonitions default enabled")
 ok(vim.deep_equal(cfg.filetypes, { "markdown" }), "filetypes default")
 ok(cfg.headings == nil, "headings config removed")
 

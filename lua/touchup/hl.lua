@@ -17,6 +17,11 @@ function M.setup()
 	-- Custom checkbox states parse as shortcut links; brackets are redrawn as
 	-- overlay virt_text in this group so no link underline shows
 	set(0, "TouchupCheckboxBracket", { link = "@markup.list", default = true })
+	set(0, "TouchupAdmonitionNote", { link = "DiagnosticInfo", default = true })
+	set(0, "TouchupAdmonitionTip", { link = "DiagnosticOk", default = true })
+	set(0, "TouchupAdmonitionImportant", { link = "DiagnosticWarn", default = true })
+	set(0, "TouchupAdmonitionWarning", { link = "DiagnosticWarn", default = true })
+	set(0, "TouchupAdmonitionCaution", { link = "DiagnosticError", default = true })
 	set(0, "TouchupDim", { link = "NonText", default = true })
 	set(0, "TouchupLinkLabel", { underdotted = true, default = true })
 	set(0, "TouchupLinkLabelBold", { bold = true, underdotted = true, default = true })
