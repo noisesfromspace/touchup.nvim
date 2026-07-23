@@ -3,6 +3,7 @@ local M = {}
 local api = vim.api
 
 local query
+local image_query
 
 local format_hl = {
 	strong_emphasis = "TouchupLinkLabelBold",
@@ -108,6 +109,54 @@ local function link_text_segments(node, bufnr)
 	return M.build_label_segments(full, sc, named)
 end
 
+---Check whether a node at (row, col) is inside a heading or blockquote.
+local function skip_node(bufnr, block_root, srow, scol)
+	if not block_root then
+		return false
+	end
+	local bn = vim.treesitter.get_node({
+		buf = bufnr,
+		pos = { srow, scol },
+		ignore_injections = true,
+	})
+	while bn do
+		local t = bn:type()
+		if t == "atx_heading" or t == "setext_heading" or t == "block_quote" then
+			return true
+		end
+		bn = bn:parent()
+	end
+	return false
+end
+
+---Style the children of a link/image node: the descriptive text
+---gets underdotted, everything else is dimmed.
+---@param label_type string "link_text" or "image_description"
+local function style_node_children(ns, bufnr, node, label_type)
+	for child in node:iter_children() do
+		local cr, cc, _, ec = child:range()
+		local t = child:type()
+		if t == label_type then
+			api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
+				end_col = ec,
+				virt_text = link_text_segments(child, bufnr),
+				virt_text_pos = "overlay",
+				priority = 150,
+				ephemeral = true,
+			})
+		elseif not child:named() or t == "link_destination" then
+			local text = vim.treesitter.get_node_text(child, bufnr)
+			api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
+				end_col = ec,
+				virt_text = { { text, "TouchupDim" } },
+				virt_text_pos = "overlay",
+				priority = 150,
+				ephemeral = true,
+			})
+		end
+	end
+end
+
 ---Dim brackets, parens, and URL. Apply underdotted to the link
 ---text. Links inside headings and blockquotes are skipped.
 ---itrees is one tree per inline region in the buffer.
@@ -119,53 +168,24 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 	if not query then
 		query = vim.treesitter.query.parse("markdown_inline", "(inline_link) @link")
 	end
+	if not image_query then
+		image_query = vim.treesitter.query.parse("markdown_inline", "(image) @img")
+	end
 
 	for _, tree in ipairs(itrees) do
 		for _, node in query:iter_captures(tree:root(), bufnr, start_row, end_row) do
 			local srow, scol = node:range()
-
-			-- Don't style links inside headings or blockquotes
-			local skip = false
-			if block_root then
-				local bn = vim.treesitter.get_node({
-					buf = bufnr,
-					pos = { srow, scol },
-					ignore_injections = true,
-				})
-				while bn do
-					local t = bn:type()
-					if t == "atx_heading" or t == "setext_heading" or t == "block_quote" then
-						skip = true
-						break
-					end
-					bn = bn:parent()
-				end
+			if not skip_node(bufnr, block_root, srow, scol) then
+				style_node_children(ns, bufnr, node, "link_text")
 			end
+		end
+	end
 
-			if not skip then
-				-- Children are: [, link_text, ], (, link_destination, )
-				for child in node:iter_children() do
-					local cr, cc, _, ec = child:range()
-					local t = child:type()
-					if t == "link_text" then
-						api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
-							end_col = ec,
-							virt_text = link_text_segments(child, bufnr),
-							virt_text_pos = "overlay",
-							priority = 150,
-							ephemeral = true,
-						})
-					elseif not child:named() or t == "link_destination" then
-						local text = vim.treesitter.get_node_text(child, bufnr)
-						api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
-							end_col = ec,
-							virt_text = { { text, "TouchupDim" } },
-							virt_text_pos = "overlay",
-							priority = 150,
-							ephemeral = true,
-						})
-					end
-				end
+	for _, tree in ipairs(itrees) do
+		for _, node in image_query:iter_captures(tree:root(), bufnr, start_row, end_row) do
+			local srow, scol = node:range()
+			if not skip_node(bufnr, block_root, srow, scol) then
+				style_node_children(ns, bufnr, node, "image_description")
 			end
 		end
 	end
