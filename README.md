@@ -12,6 +12,7 @@ Most markdown plugins make notes prettier by hiding things: URLs collapse, multi
 - Checkboxes show obsidian-style state icons inside the brackets: `[x]`, `[ ]`, `[!]`, `[>]` and more.
 - Code blocks and block quotes get a subtle background. Quotes also render in cursive.
 - `**`, `~~` and backtick markers are dimmed, not hidden.
+- Link brackets, parents and URLs are dimmed
 - H1 and H2 get underlines. The `#` markers stay where they are.
 - Enter continues a list item (a checkbox item continues unchecked). Enter on an empty item exits the list.
 

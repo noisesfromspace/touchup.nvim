@@ -10,17 +10,17 @@ local failures = 0
 local checks = 0
 
 local function ok(cond, msg)
-  checks = checks + 1
-  if cond then
-    print("  PASS " .. msg)
-  else
-    failures = failures + 1
-    print("  FAIL " .. msg)
-  end
+	checks = checks + 1
+	if cond then
+		print("  PASS " .. msg)
+	else
+		failures = failures + 1
+		print("  FAIL " .. msg)
+	end
 end
 
 local function suite(name)
-  print(name)
+	print(name)
 end
 
 -- ---------------------------------------------------------------------------
@@ -41,6 +41,7 @@ ok(cfg.checkboxes.enabled == true, "checkboxes default enabled")
 ok(cfg.markers.enabled == true, "markers default enabled")
 ok(cfg.quotes.enabled == true, "quotes default enabled")
 ok(cfg.enter.enabled == true, "enter default enabled")
+ok(cfg.links.enabled == true, "links default enabled")
 ok(vim.deep_equal(cfg.filetypes, { "markdown" }), "filetypes default")
 ok(cfg.headings == nil, "headings config removed")
 
@@ -49,15 +50,15 @@ ok(cfg.headings == nil, "headings config removed")
 -- ---------------------------------------------------------------------------
 suite("markers delimiter patterns")
 local function lead_trail(node_type, text)
-  local ds
-  if node_type == "code_span" then
-    ds = "`"
-  elseif node_type == "strikethrough" then
-    ds = "~"
-  else
-    ds = "*_"
-  end
-  return #(text:match("^[" .. ds .. "]+") or ""), #(text:match("[" .. ds .. "]+$") or "")
+	local ds
+	if node_type == "code_span" then
+		ds = "`"
+	elseif node_type == "strikethrough" then
+		ds = "~"
+	else
+		ds = "*_"
+	end
+	return #(text:match("^[" .. ds .. "]+") or ""), #(text:match("[" .. ds .. "]+$") or "")
 end
 local l, t
 l, t = lead_trail("code_span", "`code`")
@@ -78,6 +79,110 @@ l, t = lead_trail("emphasis", "_italic_")
 ok(l == 1 and t == 1, "emphasis: _italic_ -> lead=1 trail=1")
 
 -- ---------------------------------------------------------------------------
+-- links (split_formatting and build_label_segments)
+-- ---------------------------------------------------------------------------
+suite("links")
+local links = require("touchup.links")
+
+local function seg(name, want, got)
+	ok(vim.deep_equal(got, want), name .. " | got=" .. vim.inspect(got))
+end
+
+-- split_formatting
+seg(
+	"strong_emphasis: **bold**",
+	{ { "**", "TouchupDim" }, { "bold", "TouchupLinkLabelBold" }, { "**", "TouchupDim" } },
+	links.split_formatting("strong_emphasis", "**bold**")
+)
+seg(
+	"emphasis: *italic*",
+	{ { "*", "TouchupDim" }, { "italic", "TouchupLinkLabelItalic" }, { "*", "TouchupDim" } },
+	links.split_formatting("emphasis", "*italic*")
+)
+seg(
+	"strikethrough: ~~strike~~",
+	{ { "~~", "TouchupDim" }, { "strike", "TouchupLinkLabelStrikethrough" }, { "~~", "TouchupDim" } },
+	links.split_formatting("strikethrough", "~~strike~~")
+)
+seg(
+	"code_span: `code`",
+	{ { "`", "TouchupDim" }, { "code", "TouchupLinkLabelCode" }, { "`", "TouchupDim" } },
+	links.split_formatting("code_span", "`code`")
+)
+seg(
+	"strong_emphasis: __bold__ (underscore)",
+	{ { "__", "TouchupDim" }, { "bold", "TouchupLinkLabelBold" }, { "__", "TouchupDim" } },
+	links.split_formatting("strong_emphasis", "__bold__")
+)
+seg(
+	"code_span: triple backtick",
+	{ { "```", "TouchupDim" }, { "code", "TouchupLinkLabelCode" }, { "```", "TouchupDim" } },
+	links.split_formatting("code_span", "```code```")
+)
+
+-- build_label_segments
+seg("plain text", { { "hello world", "TouchupLinkLabel" } }, links.build_label_segments("hello world", 0, {}))
+
+seg(
+	"bold mid-text",
+	{
+		{ "a ", "TouchupLinkLabel" },
+		{ "**", "TouchupDim" },
+		{ "bold", "TouchupLinkLabelBold" },
+		{ "**", "TouchupDim" },
+		{ " word", "TouchupLinkLabel" },
+	},
+	links.build_label_segments("a **bold** word", 0, {
+		{ sc = 2, ec = 10, type = "strong_emphasis", text = "**bold**" },
+	})
+)
+
+seg(
+	"bold at start",
+	{
+		{ "**", "TouchupDim" },
+		{ "start", "TouchupLinkLabelBold" },
+		{ "**", "TouchupDim" },
+		{ " text", "TouchupLinkLabel" },
+	},
+	links.build_label_segments("**start** text", 0, {
+		{ sc = 0, ec = 9, type = "strong_emphasis", text = "**start**" },
+	})
+)
+
+seg(
+	"bold at end",
+	{
+		{ "text ", "TouchupLinkLabel" },
+		{ "**", "TouchupDim" },
+		{ "end", "TouchupLinkLabelBold" },
+		{ "**", "TouchupDim" },
+	},
+	links.build_label_segments("text **end**", 0, {
+		{ sc = 5, ec = 12, type = "strong_emphasis", text = "**end**" },
+	})
+)
+
+seg("non-zero start_col", { { "link", "TouchupLinkLabel" } }, links.build_label_segments("link", 10, {}))
+
+seg(
+	"two formatting nodes",
+	{
+		{ "**", "TouchupDim" },
+		{ "a", "TouchupLinkLabelBold" },
+		{ "**", "TouchupDim" },
+		{ " and ", "TouchupLinkLabel" },
+		{ "*", "TouchupDim" },
+		{ "b", "TouchupLinkLabelItalic" },
+		{ "*", "TouchupDim" },
+	},
+	links.build_label_segments("**a** and *b*", 0, {
+		{ sc = 0, ec = 5, type = "strong_emphasis", text = "**a**" },
+		{ sc = 10, ec = 13, type = "emphasis", text = "*b*" },
+	})
+)
+
+-- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)
 -- ---------------------------------------------------------------------------
 suite("enter")
@@ -95,28 +200,33 @@ local orig_cursor = api.nvim_win_get_cursor
 ---@param cursor integer[]  {row, col} 1-based, 0-based
 ---@return string? ret, string[] lines
 local function invoke(lines, cursor)
-  local b = api.nvim_create_buf(false, true)
-  api.nvim_set_current_buf(b)
-  vim.bo[b].filetype = "markdown"  -- filetype detection won't fire in --clean
-  api.nvim_exec_autocmds("FileType", { pattern = "markdown" })
-  api.nvim_buf_set_lines(b, 0, -1, false, lines)
-  api.nvim_win_get_cursor = function()
-    return cursor
-  end
-  local ok_ret, ret = pcall(enter_cb)
-  api.nvim_win_get_cursor = orig_cursor
-  vim.wait(50, function() return false end)  -- flush vim.schedule
-  if not ok_ret then
-    return "ERROR: " .. tostring(ret), {}
-  end
-  return ret, api.nvim_buf_get_lines(b, 0, -1, false)
+	local b = api.nvim_create_buf(false, true)
+	api.nvim_set_current_buf(b)
+	vim.bo[b].filetype = "markdown" -- filetype detection won't fire in --clean
+	api.nvim_exec_autocmds("FileType", { pattern = "markdown" })
+	api.nvim_buf_set_lines(b, 0, -1, false, lines)
+	api.nvim_win_get_cursor = function()
+		return cursor
+	end
+	local ok_ret, ret = pcall(enter_cb)
+	api.nvim_win_get_cursor = orig_cursor
+	vim.wait(50, function()
+		return false
+	end) -- flush vim.schedule
+	if not ok_ret then
+		return "ERROR: " .. tostring(ret), {}
+	end
+	return ret, api.nvim_buf_get_lines(b, 0, -1, false)
 end
 
 local function case(name, want_ret, want_lines, lines, cursor)
-  local ret, got = invoke(lines, cursor)
-  ok(ret == want_ret and vim.deep_equal(got, want_lines),
-    name .. (ret ~= want_ret and (" | ret=" .. vim.inspect(ret)) or "")
-    .. (not vim.deep_equal(got, want_lines) and (" | lines=" .. vim.inspect(got)) or ""))
+	local ret, got = invoke(lines, cursor)
+	ok(
+		ret == want_ret and vim.deep_equal(got, want_lines),
+		name
+			.. (ret ~= want_ret and (" | ret=" .. vim.inspect(ret)) or "")
+			.. (not vim.deep_equal(got, want_lines) and (" | lines=" .. vim.inspect(got)) or "")
+	)
 end
 
 case("plain item continues", "", { "- one", "- " }, { "- one" }, { 1, 5 })
@@ -143,5 +253,5 @@ case("numbered not a list", "<CR>", { "99 bottles" }, { "99 bottles" }, { 1, 10 
 -- ---------------------------------------------------------------------------
 print(string.format("\n%d/%d passed, %d failed", checks - failures, checks, failures))
 if failures > 0 then
-  os.exit(1)
+	os.exit(1)
 end
