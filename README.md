@@ -40,13 +40,58 @@ Everything below is the default; pass only what you want to change.
 require("touchup").setup({
   filetypes = { "markdown" },
   bullets = { enabled = true, icons = { "✸", "✿", "✦", "✧" } },
-  checkboxes = { enabled = true },
+  checkboxes = {
+    enabled = true,
+    -- Obsidian-style checkbox states. Standard `[ ]`/`[x]` are handled via
+    -- treesitter; every other key is matched by a regex fallback against
+    -- `- [<char>]` / `* [<char>]` / `+ [<char>]`.
+    icons = {
+      ["x"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
+      ["X"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
+      ["/"] = { text = "󱎖", hl = "TouchupCheckboxPending" },
+      [">"] = { text = "", hl = "TouchupCheckboxCancelled" },
+      ["<"] = { text = "󰃖", hl = "TouchupCheckboxCancelled" },
+      ["-"] = { text = "󰍶", hl = "TouchupCheckboxCancelled" },
+      ["?"] = { text = "󰋗", hl = "TouchupCheckboxPending" },
+      ["!"] = { text = "󰀦", hl = "TouchupCheckboxImportant" },
+      ["*"] = { text = "󰓎", hl = "TouchupCheckboxPending" },
+      ['"'] = { text = "󰸥", hl = "TouchupCheckboxCancelled" },
+      ["l"] = { text = "󰆋", hl = "TouchupCheckboxProgress" },
+      ["b"] = { text = "󰃀", hl = "TouchupCheckboxProgress" },
+      ["i"] = { text = "󰰄", hl = "TouchupCheckboxChecked" },
+      ["S"] = { text = "", hl = "TouchupCheckboxChecked" },
+      ["I"] = { text = "󰛨", hl = "TouchupCheckboxPending" },
+      ["p"] = { text = "", hl = "TouchupCheckboxChecked" },
+      ["c"] = { text = "", hl = "TouchupCheckboxUnchecked" },
+      ["f"] = { text = "󱠇", hl = "TouchupCheckboxUnchecked" },
+      ["k"] = { text = "", hl = "TouchupCheckboxPending" },
+      ["w"] = { text = "", hl = "TouchupCheckboxProgress" },
+      ["u"] = { text = "󰔵", hl = "TouchupCheckboxChecked" },
+      ["d"] = { text = "󰔳", hl = "TouchupCheckboxUnchecked" },
+    },
+  },
   code_blocks = { enabled = true },
   markers = { enabled = true },
   quotes = { enabled = true },
   enter = { enabled = true },
 })
 ```
+
+`checkboxes.icons` is merged per key: pass only the states you want to change or
+add and the rest keep their default icon.
+
+```lua
+require("touchup").setup({
+  checkboxes = {
+    icons = {
+      ["x"] = { text = "✔", hl = "MyChecked" }, -- restyle an existing state
+      ["z"] = { text = "💤", hl = "MyCustom" }, -- add a brand-new one: [z]
+    },
+  },
+})
+```
+
+Unchecked (`[ ]`) always renders as a plain space and isn't customizable.
 
 All highlight groups are defined with `default = true`, so your colorscheme wins. Override any `Touchup*` group if you want different colors.
 

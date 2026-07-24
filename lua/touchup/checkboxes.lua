@@ -2,38 +2,12 @@ local M = {}
 
 local api = vim.api
 
--- Obsidian-style checkbox states
-local icons = {
-	-- unchecked renders as a plain space (no icon)
-	["x"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
-	["X"] = { text = "󰗠", hl = "TouchupCheckboxChecked" },
-	["/"] = { text = "󱎖", hl = "TouchupCheckboxPending" },
-	[">"] = { text = "", hl = "TouchupCheckboxCancelled" },
-	["<"] = { text = "󰃖", hl = "TouchupCheckboxCancelled" },
-	["-"] = { text = "󰍶", hl = "TouchupCheckboxCancelled" },
-	["?"] = { text = "󰋗", hl = "TouchupCheckboxPending" },
-	["!"] = { text = "󰀦", hl = "TouchupCheckboxImportant" },
-	["*"] = { text = "󰓎", hl = "TouchupCheckboxPending" },
-	['"'] = { text = "󰸥", hl = "TouchupCheckboxCancelled" },
-	["l"] = { text = "󰆋", hl = "TouchupCheckboxProgress" },
-	["b"] = { text = "󰃀", hl = "TouchupCheckboxProgress" },
-	["i"] = { text = "󰰄", hl = "TouchupCheckboxChecked" },
-	["S"] = { text = "", hl = "TouchupCheckboxChecked" },
-	["I"] = { text = "󰛨", hl = "TouchupCheckboxPending" },
-	["p"] = { text = "", hl = "TouchupCheckboxChecked" },
-	["c"] = { text = "", hl = "TouchupCheckboxUnchecked" },
-	["f"] = { text = "󱠇", hl = "TouchupCheckboxUnchecked" },
-	["k"] = { text = "", hl = "TouchupCheckboxPending" },
-	["w"] = { text = "", hl = "TouchupCheckboxProgress" },
-	["u"] = { text = "󰔵", hl = "TouchupCheckboxChecked" },
-	["d"] = { text = "󰔳", hl = "TouchupCheckboxUnchecked" },
-}
-
 local query
 
 ---Render checkbox state icons for a range. Called from the decoration provider,
----so extmarks are ephemeral and root is the shared parse tree.
-function M.render(ns, bufnr, start_row, end_row, root)
+---so extmarks are ephemeral and root is the shared parse tree. `icons` is
+---`cfg.checkboxes.icons` (built-in states merged with any user overrides).
+function M.render(ns, bufnr, icons, start_row, end_row, root)
 	if not query then
 		query = vim.treesitter.query.parse(
 			"markdown",
