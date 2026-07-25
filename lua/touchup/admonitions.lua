@@ -29,12 +29,26 @@ function M.render(ns, bufnr, start_row, end_row, root)
 		local bcol, ecol, mtype = first:find("^>%s*%[!(%w+)%]")
 		if mtype then
 			local hl = type_hl[mtype] or "TouchupAdmonitionNote"
+			-- Color the [!TYPE] label
 			api.nvim_buf_set_extmark(bufnr, ns, srow, bcol - 1, {
 				end_col = ecol,
 				hl_group = hl,
 				priority = 150,
 				ephemeral = true,
 			})
+			-- Color the > markers on all lines of the admonition
+			for r = srow, erow - 1 do
+				local line = (api.nvim_buf_get_lines(bufnr, r, r + 1, false) or { "" })[1]
+				local gt = line:find(">")
+				if gt then
+					api.nvim_buf_set_extmark(bufnr, ns, r, gt - 1, {
+						end_col = gt,
+						hl_group = hl,
+						priority = 150,
+						ephemeral = true,
+					})
+				end
+			end
 		end
 	end
 end

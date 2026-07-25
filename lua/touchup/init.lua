@@ -16,6 +16,7 @@ local enter = require("touchup.enter")
 local NAMESPACE = api.nvim_create_namespace("touchup")
 local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
 local ticks = {}
+local conceal_warned = false
 
 ---@param user? table
 function M.setup(user)
@@ -90,12 +91,32 @@ function M.setup(user)
 			local inline = parser:children().markdown_inline
 			local itrees = inline and inline:parse(true)
 
-			if cfg.links.enabled then
-				links.render(NAMESPACE, bufnr, topline, last, itrees, root)
-			end
+			-- When conceallevel > 0, Vim visually removes formatting characters
+			-- (*, _, `, ~) which shifts visual column positions relative to
+			-- buffer positions. This breaks extmark column coordinates used by
+			-- links and markers.
+			local conceal = vim.wo[bufnr].conceallevel or 0
+			local skip_inline = conceal > 0 and (cfg.links.enabled or cfg.markers.enabled)
 
-			if cfg.markers.enabled then
-				markers.render(NAMESPACE, bufnr, topline, last, itrees, root)
+			if skip_inline then
+				if not conceal_warned then
+					conceal_warned = true
+					vim.notify(
+						"touchup: links/markers disabled (conceallevel="
+							.. conceal
+							.. " breaks extmark column positions). "
+							.. "Set conceallevel=0 to enable.",
+						vim.log.levels.WARN
+					)
+				end
+			else
+				if cfg.links.enabled then
+					links.render(NAMESPACE, bufnr, topline, last, itrees, root)
+				end
+
+				if cfg.markers.enabled then
+					markers.render(NAMESPACE, bufnr, topline, last, itrees, root)
+				end
 			end
 		end,
 	})
