@@ -47,9 +47,6 @@ function M.setup(user)
 			return true
 		end,
 		on_win = function(_, _, bufnr, topline, botline)
-			if not vim.api.nvim_win_is_valid(bufnr) then
-				return false
-			end
 			if not vim.tbl_contains(cfg.filetypes, vim.bo[bufnr].filetype) then
 				return false
 			end
@@ -98,7 +95,8 @@ function M.setup(user)
 			-- (*, _, `, ~) which shifts visual column positions relative to
 			-- buffer positions. This breaks extmark column coordinates used by
 			-- links and markers.
-			local conceal = vim.wo[bufnr].conceallevel or 0
+			local winid = vim.fn.win_findbuf(bufnr)[1]
+			local conceal = winid and vim.wo[winid].conceallevel or 0
 			local skip_inline = conceal > 0 and (cfg.links.enabled or cfg.markers.enabled)
 
 			if skip_inline then
