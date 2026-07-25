@@ -73,7 +73,7 @@ function M.setup(user)
 			end
 
 			if cfg.checkboxes.enabled then
-				checkboxes.render(NAMESPACE, bufnr, topline, last, root)
+				checkboxes.render(NAMESPACE, bufnr, cfg.checkboxes.icons, topline, last, root)
 			end
 
 			if cfg.quotes.enabled then

@@ -46,6 +46,29 @@ ok(cfg.admonitions.enabled == true, "admonitions default enabled")
 ok(vim.deep_equal(cfg.filetypes, { "markdown" }), "filetypes default")
 ok(cfg.headings == nil, "headings config removed")
 
+-- checkboxes.icons: per-key merge (override existing state, add a new one,
+-- leave every untouched default state alone)
+local defaults = require("touchup.config").defaults
+local icon_cfg = config.merge({
+	checkboxes = {
+		icons = {
+			["x"] = { text = "X", hl = "MyChecked" },
+			["z"] = { text = "Z", hl = "MyCustom" },
+		},
+	},
+})
+ok(icon_cfg.checkboxes.icons.x.text == "X" and icon_cfg.checkboxes.icons.x.hl == "MyChecked", "checkboxes.icons overrides an existing state")
+ok(icon_cfg.checkboxes.icons.z.text == "Z" and icon_cfg.checkboxes.icons.z.hl == "MyCustom", "checkboxes.icons adds a brand-new state")
+ok(
+	vim.deep_equal(icon_cfg.checkboxes.icons["X"], defaults.checkboxes.icons["X"]),
+	"checkboxes.icons leaves untouched states (uppercase X) at their default"
+)
+ok(
+	vim.deep_equal(icon_cfg.checkboxes.icons["/"], defaults.checkboxes.icons["/"]),
+	"checkboxes.icons leaves untouched states (/) at their default"
+)
+ok(icon_cfg.checkboxes.icons[" "] == nil, "checkboxes.icons has no entry for unchecked state")
+
 -- ---------------------------------------------------------------------------
 -- markers delimiter extraction (pure pattern logic)
 -- ---------------------------------------------------------------------------
