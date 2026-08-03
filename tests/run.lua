@@ -284,6 +284,41 @@ case("numbered cursor in prefix", true, { "1. one" }, { "1. one" }, { 1, 2 })
 case("numbered not a list", true, { "99 bottles" }, { "99 bottles" }, { 1, 10 })
 
 -- ---------------------------------------------------------------------------
+-- indent/dedent: renumber numbered list items
+-- ---------------------------------------------------------------------------
+suite("indent/dedent")
+local shift_fn = require("touchup.enter")._renumber_after_shift
+
+---@param name string
+---@param want string   expected line after shift
+---@param input string  line under cursor
+---@param above string[] lines above the cursor
+local function check_shift(name, want, input, above)
+	local b = api.nvim_create_buf(false, true)
+	api.nvim_set_current_buf(b)
+	local all = vim.list_extend(vim.deepcopy(above), { input })
+	api.nvim_buf_set_lines(b, 0, -1, false, all)
+	api.nvim_win_set_cursor(0, { #all, 0 })
+	api.nvim_set_current_buf(b)
+	shift_fn()
+	local got = api.nvim_buf_get_lines(b, #all - 1, #all, false)[1]
+	ok(got == want, name .. " | want=" .. vim.inspect(want) .. " got=" .. vim.inspect(got))
+end
+
+-- indent: scan for sibling, else reset to 1
+check_shift("indent: sibling 4. follows 3.", "   4. item", "   5. item", { "1. a", "   3. b" })
+check_shift("indent: no sibling resets to 1", "   1. item", "   5. item", { "1. a" })
+
+-- dedent: scan for sibling, else reset to 1
+check_shift("dedent: sibling 2. follows 1.", "2. item", "1. item", { "1. first" })
+check_shift("dedent: sibling 3. follows 2.", "3. item", "99. item", { "1. a", "2. b" })
+check_shift("dedent: no sibling resets to 1", "1. item", "5. item", { "some text" })
+check_shift("dedent: skips blank line to find sibling", "3. item", "5. item", { "1. a", "2. b", "" })
+check_shift("dedent: skips deeper child, finds parent as sibling", "2. item", "5. item", { "1. parent", "  2. child" })
+check_shift("dedent: bullet ignored, resets to 1", "1. item", "5. item", { "- bullet" })
+check_shift("dedent: non-list resets to 1", "1. item", "5. item", { "plain text" })
+
+-- ---------------------------------------------------------------------------
 print(string.format("\n%d/%d passed, %d failed", checks - failures, checks, failures))
 if failures > 0 then
 	os.exit(1)
