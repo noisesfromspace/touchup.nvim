@@ -212,67 +212,76 @@ seg(
 suite("enter")
 local api = vim.api
 
--- Get the buffer-local <CR> callback by creating a markdown buffer
+-- Get the <Plug> mapping callback by creating a markdown buffer
 local enter_buf = api.nvim_create_buf(false, true)
 api.nvim_set_current_buf(enter_buf)
 vim.bo[enter_buf].filetype = "markdown"
-local enter_cb = assert(vim.fn.maparg("<CR>", "i", false, true).callback, "enter callback not found")
+local enter_cb = assert(
+	vim.fn.maparg("<Plug>(touchup-smart-enter)", "i", false, true).callback,
+	"<Plug> callback not found"
+)
 
 local orig_cursor = api.nvim_win_get_cursor
+local orig_feedkeys = api.nvim_feedkeys
 
 ---@param lines string[]
 ---@param cursor integer[]  {row, col} 1-based, 0-based
----@return string? ret, string[] lines
+---@return boolean fed_cr, string[] lines
 local function invoke(lines, cursor)
 	local b = api.nvim_create_buf(false, true)
 	api.nvim_set_current_buf(b)
-	vim.bo[b].filetype = "markdown" -- filetype detection won't fire in --clean
+	vim.bo[b].filetype = "markdown"
 	api.nvim_exec_autocmds("FileType", { pattern = "markdown" })
 	api.nvim_buf_set_lines(b, 0, -1, false, lines)
 	api.nvim_win_get_cursor = function()
 		return cursor
 	end
-	local ok_ret, ret = pcall(enter_cb)
-	api.nvim_win_get_cursor = orig_cursor
-	vim.wait(50, function()
-		return false
-	end) -- flush vim.schedule
-	if not ok_ret then
-		return "ERROR: " .. tostring(ret), {}
+
+	-- Track whether feedkeys was called with <CR> (fallthrough)
+	local fed_cr = false
+	api.nvim_feedkeys = function(keys, mode, _)
+		if keys:match("\r") or keys:match("\n") then
+			fed_cr = true
+		end
 	end
-	return ret, api.nvim_buf_get_lines(b, 0, -1, false)
+
+	pcall(enter_cb)
+	api.nvim_win_get_cursor = orig_cursor
+	api.nvim_feedkeys = orig_feedkeys
+
+	return fed_cr, api.nvim_buf_get_lines(b, 0, -1, false)
 end
 
-local function case(name, want_ret, want_lines, lines, cursor)
-	local ret, got = invoke(lines, cursor)
+local function case(name, want_fed_cr, want_lines, lines, cursor)
+	local fed_cr, got = invoke(lines, cursor)
 	ok(
-		ret == want_ret and vim.deep_equal(got, want_lines),
+		vim.deep_equal(got, want_lines) and fed_cr == want_fed_cr,
 		name
-			.. (ret ~= want_ret and (" | ret=" .. vim.inspect(ret)) or "")
 			.. (not vim.deep_equal(got, want_lines) and (" | lines=" .. vim.inspect(got)) or "")
+			.. (fed_cr ~= want_fed_cr and (" | fed_cr=" .. tostring(fed_cr)) or "")
 	)
 end
 
-case("plain item continues", "", { "- one", "- " }, { "- one" }, { 1, 5 })
-case("checked -> unchecked", "", { "- [x] done", "- [ ] " }, { "- [x] done" }, { 1, 10 })
-case("custom state -> [ ]", "", { "- [!] imp", "- [ ] " }, { "- [!] imp" }, { 1, 9 })
-case("empty item exits", "", { "" }, { "- " }, { 1, 2 })
-case("empty checkbox exits", "", { "" }, { "- [ ] " }, { 1, 6 })
-case("non-list passthrough", "<CR>", { "hello" }, { "hello" }, { 1, 5 })
-case("cursor in prefix", "<CR>", { "- one" }, { "- one" }, { 1, 1 })
-case("mid-item split", "", { "- o", "- ne" }, { "- one" }, { 1, 3 })
-case("nested keeps indent", "", { "  - a", "  - " }, { "  - a" }, { 1, 6 })
-case("**bold NOT a list", "<CR>", { "**something**" }, { "**something**" }, { 1, 14 })
-case("bold inside list", "", { "- **bold**", "- " }, { "- **bold**" }, { 1, 10 })
-case("** mid not continued", "<CR>", { "**something**" }, { "**something**" }, { 1, 3 })
-case("numbered dot continues", "", { "1. one", "2. " }, { "1. one" }, { 1, 6 })
-case("numbered paren continues", "", { "1) one", "2) " }, { "1) one" }, { 1, 6 })
-case("numbered empty exits", "", { "" }, { "1. " }, { 1, 3 })
-case("numbered nested", "", { "  5. a", "  6. " }, { "  5. a" }, { 1, 6 })
-case("numbered mid split", "", { "1. o", "2. ne" }, { "1. one" }, { 1, 4 })
-case("numbered checkbox", "", { "1. [x] done", "2. [ ] " }, { "1. [x] done" }, { 1, 11 })
-case("numbered cursor in prefix", "<CR>", { "1. one" }, { "1. one" }, { 1, 2 })
-case("numbered not a list", "<CR>", { "99 bottles" }, { "99 bottles" }, { 1, 10 })
+case("plain item continues", false, { "- one", "- " }, { "- one" }, { 1, 5 })
+case("checked -> unchecked", false, { "- [x] done", "- [ ] " }, { "- [x] done" }, { 1, 10 })
+case("custom state -> [ ]", false, { "- [!] imp", "- [ ] " }, { "- [!] imp" }, { 1, 9 })
+case("empty item exits", false, { "" }, { "- " }, { 1, 2 })
+case("empty checkbox exits", false, { "" }, { "- [ ] " }, { 1, 6 })
+case("non-list passthrough", true, { "hello" }, { "hello" }, { 1, 5 })
+case("cursor in prefix", true, { "- one" }, { "- one" }, { 1, 1 })
+case("mid-item split", false, { "- o", "- ne" }, { "- one" }, { 1, 3 })
+case("nested keeps indent", false, { "  - a", "  - " }, { "  - a" }, { 1, 6 })
+case("**bold NOT a list", true, { "**something**" }, { "**something**" }, { 1, 14 })
+case("bold inside list", false, { "- **bold**", "- " }, { "- **bold**" }, { 1, 10 })
+case("** mid not continued", true, { "**something**" }, { "**something**" }, { 1, 3 })
+case("numbered dot continues", false, { "1. one", "2. " }, { "1. one" }, { 1, 6 })
+case("numbered paren continues", false, { "1) one", "2) " }, { "1) one" }, { 1, 6 })
+case("numbered empty exits", false, { "" }, { "1. " }, { 1, 3 })
+case("numbered nested", false, { "  5. a", "  6. " }, { "  5. a" }, { 1, 6 })
+case("numbered mid split", false, { "1. o", "2. ne" }, { "1. one" }, { 1, 4 })
+case("numbered checkbox", false, { "1. [x] done", "2. [ ] " }, { "1. [x] done" }, { 1, 11 })
+case("numbered cursor in prefix", true, { "1. one" }, { "1. one" }, { 1, 2 })
+case("numbered not a list", true, { "99 bottles" }, { "99 bottles" }, { 1, 10 })
 
 -- ---------------------------------------------------------------------------
 print(string.format("\n%d/%d passed, %d failed", checks - failures, checks, failures))
