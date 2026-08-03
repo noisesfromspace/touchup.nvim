@@ -16,6 +16,7 @@ local enter = require("touchup.enter")
 local NAMESPACE = api.nvim_create_namespace("touchup")
 local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
 local ticks = {}
+local attached = {}
 
 ---@param user? table
 function M.setup(user)
@@ -28,10 +29,24 @@ function M.setup(user)
 			group = GROUP,
 			pattern = cfg.filetypes,
 			callback = function(args)
+				if attached[args.buf] then
+					return
+				end
+				attached[args.buf] = true
 				enter.setup(args.buf)
 			end,
 		})
 	end
+
+	-- Clean up tracking state when a buffer is deleted
+	api.nvim_create_autocmd("BufDelete", {
+		group = GROUP,
+		pattern = cfg.filetypes,
+		callback = function(args)
+			attached[args.buf] = nil
+			ticks[args.buf] = nil
+		end,
+	})
 
 	-- Decoration provider: parse treesitter once per window redraw, share the
 	-- tree across all modules. on_win alone covers every drawn line, so no
