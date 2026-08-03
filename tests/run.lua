@@ -274,14 +274,28 @@ case("nested keeps indent", false, { "  - a", "  - " }, { "  - a" }, { 1, 6 })
 case("**bold NOT a list", true, { "**something**" }, { "**something**" }, { 1, 14 })
 case("bold inside list", false, { "- **bold**", "- " }, { "- **bold**" }, { 1, 10 })
 case("** mid not continued", true, { "**something**" }, { "**something**" }, { 1, 3 })
+case("* bullet continues", false, { "* one", "* " }, { "* one" }, { 1, 7 })
+case("* checked -> unchecked", false, { "* [x] done", "* [ ] " }, { "* [x] done" }, { 1, 12 })
+case("* empty exits", false, { "" }, { "* " }, { 1, 2 })
+case("* mid split", false, { "* o", "* ne" }, { "* one" }, { 1, 3 })
+case("+ bullet continues", false, { "+ one", "+ " }, { "+ one" }, { 1, 7 })
+case("+ checked -> unchecked", false, { "+ [x] done", "+ [ ] " }, { "+ [x] done" }, { 1, 12 })
 case("numbered dot continues", false, { "1. one", "2. " }, { "1. one" }, { 1, 6 })
 case("numbered paren continues", false, { "1) one", "2) " }, { "1) one" }, { 1, 6 })
 case("numbered empty exits", false, { "" }, { "1. " }, { 1, 3 })
 case("numbered nested", false, { "  5. a", "  6. " }, { "  5. a" }, { 1, 6 })
 case("numbered mid split", false, { "1. o", "2. ne" }, { "1. one" }, { 1, 4 })
 case("numbered checkbox", false, { "1. [x] done", "2. [ ] " }, { "1. [x] done" }, { 1, 11 })
+case("multi-digit: 10. -> 11.", false, { "10. item", "11. " }, { "10. item" }, { 1, 10 })
+case("multi-digit: 99. -> 100.", false, { "99. item", "100. " }, { "99. item" }, { 1, 10 })
+-- Cursor inside checkbox marker: treated as prefix, falls through
+case("cursor inside checkbox [", true, { "- [x] text" }, { "- [x] text" }, { 1, 3 })
+case("cursor inside checkbox x", true, { "- [x] text" }, { "- [x] text" }, { 1, 4 })
+case("cursor inside checkbox ]", true, { "- [x] text" }, { "- [x] text" }, { 1, 5 })
 case("numbered cursor in prefix", true, { "1. one" }, { "1. one" }, { 1, 2 })
 case("numbered not a list", true, { "99 bottles" }, { "99 bottles" }, { 1, 10 })
+-- Multi-line: continuation on line 1 shouldn't lose line 2
+case("multi-line: line 2 preserved", false, { "- a", "- ", "- b" }, { "- a", "- b" }, { 1, 3 })
 
 -- ---------------------------------------------------------------------------
 -- indent/dedent: renumber numbered list items
@@ -308,6 +322,9 @@ end
 -- indent: scan for sibling, else reset to 1
 check_shift("indent: sibling 4. follows 3.", "   4. item", "   5. item", { "1. a", "   3. b" })
 check_shift("indent: no sibling resets to 1", "   1. item", "   5. item", { "1. a" })
+check_shift("indent: checkbox 5. [x] -> 1. [x]", "   1. [x] task", "   5. [x] task", { "1. a" })
+check_shift("indent: * bullet unchanged", "   * item", "   * item", { "1. a" })
+check_shift("indent: multi-digit 10. -> 1.", "   1. item", "   10. item", { "1. a" })
 
 -- dedent: scan for sibling, else reset to 1
 check_shift("dedent: sibling 2. follows 1.", "2. item", "1. item", { "1. first" })
@@ -315,6 +332,8 @@ check_shift("dedent: sibling 3. follows 2.", "3. item", "99. item", { "1. a", "2
 check_shift("dedent: no sibling resets to 1", "1. item", "5. item", { "some text" })
 check_shift("dedent: skips blank line to find sibling", "3. item", "5. item", { "1. a", "2. b", "" })
 check_shift("dedent: skips deeper child, finds parent as sibling", "2. item", "5. item", { "1. parent", "  2. child" })
+check_shift("dedent: checkbox follows sibling", "3. [x] task", "99. [x] task", { "1. a", "2. b" })
+check_shift("dedent: + bullet unchanged", "+ item", "+ item", { "1. a" })
 check_shift("dedent: bullet ignored, resets to 1", "1. item", "5. item", { "- bullet" })
 check_shift("dedent: non-list resets to 1", "1. item", "5. item", { "plain text" })
 
