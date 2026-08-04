@@ -107,7 +107,7 @@ function M.setup(user)
 			local winid = vim.fn.win_findbuf(bufnr)[1]
 			local conceal = winid and vim.wo[winid].conceallevel or 0
 
-			if conceal < 0 then
+			if conceal == 0 then
         -- parse(true): on Neovim 0.12 a bare parse() on an injected child
         -- tree returns no trees; true forces a full parse (also one tree per
         -- inline region, so all must be iterated). Parsed once and shared.
