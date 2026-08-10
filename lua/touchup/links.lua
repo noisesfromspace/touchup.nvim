@@ -4,6 +4,7 @@ local api = vim.api
 
 local query
 local image_query
+local autolink_query
 
 local format_hl = {
 	strong_emphasis = "TouchupLinkLabelBold",
@@ -11,6 +12,23 @@ local format_hl = {
 	strikethrough = "TouchupLinkLabelStrikethrough",
 	code_span = "TouchupLinkLabelCode",
 }
+
+---Pure logic: build virt_text segments for a bare autolink (e.g. <http://link.com>).
+---Exposed for testing.
+---@param text string full node text
+---@return table list of {string, string} pairs
+function M.build_autolink_segments(text)
+	if #text >= 2 and text:sub(1, 1) == "<" and text:sub(-1) == ">" then
+		local url = text:sub(2, #text - 1)
+		local segments = { { "<", "TouchupDim" } }
+		if #url > 0 then
+			table.insert(segments, { url, "TouchupLinkLabel" })
+		end
+		table.insert(segments, { ">", "TouchupDim" })
+		return segments
+	end
+	return { { text, "TouchupLinkLabel" } }
+end
 
 ---Pure logic: split a formatted inline node's text into (text, hl)
 ---segments. Exposed for testing.
@@ -157,8 +175,21 @@ local function style_node_children(ns, bufnr, node, label_type)
 	end
 end
 
+---Style a bare URL autolink (e.g. <http://link.com>): dim < and >, style URL as TouchupLinkLabel.
+local function style_autolink(ns, bufnr, node)
+	local srow, scol, _, ecol = node:range()
+	local text = vim.treesitter.get_node_text(node, bufnr)
+	api.nvim_buf_set_extmark(bufnr, ns, srow, scol, {
+		end_col = ecol,
+		virt_text = M.build_autolink_segments(text),
+		virt_text_pos = "overlay",
+		priority = 150,
+		ephemeral = true,
+	})
+end
+
 ---Dim brackets, parens, and URL. Apply underdotted to the link
----text. Links inside headings and blockquotes are skipped.
+---text and bare URLs. Links inside headings and blockquotes are skipped.
 ---itrees is one tree per inline region in the buffer.
 function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 	if not itrees then
@@ -170,6 +201,12 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 	end
 	if not image_query then
 		image_query = vim.treesitter.query.parse("markdown_inline", "(image) @img")
+	end
+	if not autolink_query then
+		autolink_query = vim.treesitter.query.parse(
+			"markdown_inline",
+			"[(uri_autolink) (email_autolink)] @autolink"
+		)
 	end
 
 	for _, tree in ipairs(itrees) do
@@ -186,6 +223,15 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 			local srow, scol = node:range()
 			if not skip_node(bufnr, block_root, srow, scol) then
 				style_node_children(ns, bufnr, node, "image_description")
+			end
+		end
+	end
+
+	for _, tree in ipairs(itrees) do
+		for _, node in autolink_query:iter_captures(tree:root(), bufnr, start_row, end_row) do
+			local srow, scol = node:range()
+			if not skip_node(bufnr, block_root, srow, scol) then
+				style_autolink(ns, bufnr, node)
 			end
 		end
 	end

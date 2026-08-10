@@ -206,6 +206,18 @@ seg(
 	})
 )
 
+-- build_autolink_segments
+seg(
+	"autolink http",
+	{ { "<", "TouchupDim" }, { "http://link.com", "TouchupLinkLabel" }, { ">", "TouchupDim" } },
+	links.build_autolink_segments("<http://link.com>")
+)
+seg(
+	"autolink email",
+	{ { "<", "TouchupDim" }, { "user@example.com", "TouchupLinkLabel" }, { ">", "TouchupDim" } },
+	links.build_autolink_segments("<user@example.com>")
+)
+
 -- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)
 -- ---------------------------------------------------------------------------
