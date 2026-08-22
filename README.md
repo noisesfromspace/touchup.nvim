@@ -39,6 +39,7 @@ Everything below is the default; pass only what you want to change.
 ```lua
 require("touchup").setup({
   filetypes = { "markdown" },
+  max_lines = 5000,
   bullets = { enabled = true, icons = { "✸", "✿", "✦", "✧" } },
   checkboxes = {
     enabled = true,
@@ -79,6 +80,9 @@ require("touchup").setup({
 
 `checkboxes.icons` is merged per key: pass only the states you want to change or
 add and the rest keep their default icon.
+
+Buffers with more than `max_lines` lines skip the decoration pass entirely and
+fall back to Vim's built-in conceal (conceallevel=2) instead.
 
 ```lua
 require("touchup").setup({

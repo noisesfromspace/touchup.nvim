@@ -17,6 +17,8 @@ local NAMESPACE = api.nvim_create_namespace("touchup")
 local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
 local ticks = {}
 local attached = {}
+-- window id -> conceallevel before touchup raised it for a huge buffer
+local conceal_original = {}
 
 ---@param user? table
 function M.setup(user)
@@ -63,6 +65,27 @@ function M.setup(user)
 		on_win = function(_, _, bufnr, topline, botline)
 			if not vim.tbl_contains(cfg.filetypes, vim.bo[bufnr].filetype) then
 				return false
+			end
+
+			local wins = vim.fn.win_findbuf(bufnr)
+
+			-- Huge buffers: skip the decoration pass and rely on Vim's built-in
+			-- conceal instead. Remember each window's conceallevel so it can be
+			-- restored when a small buffer is shown in it again.
+			if api.nvim_buf_line_count(bufnr) > cfg.max_lines then
+				for _, winid in ipairs(wins) do
+					if not conceal_original[winid] then
+						conceal_original[winid] = vim.wo[winid].conceallevel
+					end
+					vim.wo[winid].conceallevel = 2
+				end
+				return false
+			end
+			for _, winid in ipairs(wins) do
+				if conceal_original[winid] then
+					vim.wo[winid].conceallevel = conceal_original[winid]
+					conceal_original[winid] = nil
+				end
 			end
 
 			-- get_parser throws if the markdown grammar isn't installed
