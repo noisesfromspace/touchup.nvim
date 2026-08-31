@@ -1,6 +1,7 @@
 local M = {}
 
 local api = vim.api
+local diag = require("touchup.diag")
 
 local query
 
@@ -25,7 +26,7 @@ function M.render(ns, bufnr, icons, start_row, end_row, root)
 		if cfg then
 			api.nvim_buf_set_extmark(bufnr, ns, row, c0 + 1, {
 				end_col = c0 + 2,
-				virt_text = { { cfg.text, cfg.hl } },
+				virt_text = { { cfg.text, diag.overlay(bufnr, row, c0 + 1, cfg.hl, c0 + 2) } },
 				virt_text_pos = "overlay",
 				ephemeral = true,
 			})
@@ -45,19 +46,19 @@ function M.render(ns, bufnr, icons, start_row, end_row, root)
 				-- replace the bracket cells with overlay virt_text instead.
 				api.nvim_buf_set_extmark(bufnr, ns, row, e - 3, {
 					end_col = e - 2,
-					virt_text = { { "[", "TouchupCheckboxBracket" } },
+					virt_text = { { "[", diag.overlay(bufnr, row, e - 3, "TouchupCheckboxBracket", e - 2) } },
 					virt_text_pos = "overlay",
 					ephemeral = true,
 				})
 				api.nvim_buf_set_extmark(bufnr, ns, row, e - 2, {
 					end_col = e - 1,
-					virt_text = { { cfg.text, cfg.hl } },
+					virt_text = { { cfg.text, diag.overlay(bufnr, row, e - 2, cfg.hl, e - 1) } },
 					virt_text_pos = "overlay",
 					ephemeral = true,
 				})
 				api.nvim_buf_set_extmark(bufnr, ns, row, e - 1, {
 					end_col = e,
-					virt_text = { { "]", "TouchupCheckboxBracket" } },
+					virt_text = { { "]", diag.overlay(bufnr, row, e - 1, "TouchupCheckboxBracket", e) } },
 					virt_text_pos = "overlay",
 					ephemeral = true,
 				})

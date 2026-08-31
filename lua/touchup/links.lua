@@ -1,6 +1,26 @@
 local M = {}
 
 local api = vim.api
+local diag = require("touchup.diag")
+
+---Route virt_text segment highlights through the diagnostic overlay so an LSP
+---underline under a link still renders (overlay virt_text would otherwise
+---replace the cell highlight). Segments advance in byte columns from `col`.
+---@param bufnr integer
+---@param row integer 0-based
+---@param col integer 0-based byte column of the first segment
+---@param segments table[] list of {string text, string hl}
+---@return table[]
+local function overlay_segments(bufnr, row, col, segments)
+	local out = {}
+	local cur = col
+	for _, seg in ipairs(segments) do
+		local text = seg[1]
+		table.insert(out, { text, diag.overlay(bufnr, row, cur, seg[2], cur + #text) })
+		cur = cur + #text
+	end
+	return out
+end
 
 local query
 local image_query
@@ -157,7 +177,7 @@ local function style_node_children(ns, bufnr, node, label_type)
 		if t == label_type then
 			api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
 				end_col = ec,
-				virt_text = link_text_segments(child, bufnr),
+				virt_text = overlay_segments(bufnr, cr, cc, link_text_segments(child, bufnr)),
 				virt_text_pos = "overlay",
 				priority = 150,
 				ephemeral = true,
@@ -166,7 +186,7 @@ local function style_node_children(ns, bufnr, node, label_type)
 			local text = vim.treesitter.get_node_text(child, bufnr)
 			api.nvim_buf_set_extmark(bufnr, ns, cr, cc, {
 				end_col = ec,
-				virt_text = { { text, "TouchupDim" } },
+				virt_text = { { text, diag.overlay(bufnr, cr, cc, "TouchupDim", ec) } },
 				virt_text_pos = "overlay",
 				priority = 150,
 				ephemeral = true,
@@ -181,7 +201,7 @@ local function style_autolink(ns, bufnr, node)
 	local text = vim.treesitter.get_node_text(node, bufnr)
 	api.nvim_buf_set_extmark(bufnr, ns, srow, scol, {
 		end_col = ecol,
-		virt_text = M.build_autolink_segments(text),
+		virt_text = overlay_segments(bufnr, srow, scol, M.build_autolink_segments(text)),
 		virt_text_pos = "overlay",
 		priority = 150,
 		ephemeral = true,

@@ -1,6 +1,7 @@
 local M = {}
 
 local api = vim.api
+local diag = require("touchup.diag")
 
 local query
 
@@ -63,7 +64,7 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 					if lead > 0 then
 						api.nvim_buf_set_extmark(bufnr, ns, srow, scol, {
 							end_col = scol + lead,
-							hl_group = "TouchupDim",
+							hl_group = diag.overlay(bufnr, srow, scol, "TouchupDim", scol + lead),
 							priority = 150,
 							ephemeral = true,
 						})
@@ -71,7 +72,7 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 					if trail > 0 and trail < ecol - scol then
 						api.nvim_buf_set_extmark(bufnr, ns, srow, ecol - trail, {
 							end_col = ecol,
-							hl_group = "TouchupDim",
+							hl_group = diag.overlay(bufnr, srow, ecol - trail, "TouchupDim", ecol),
 							priority = 150,
 							ephemeral = true,
 						})
