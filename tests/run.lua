@@ -217,8 +217,62 @@ seg(
 	{ { "<", "TouchupDim" }, { "user@example.com", "TouchupLinkLabel" }, { ">", "TouchupDim" } },
 	links.build_autolink_segments("<user@example.com>")
 )
+-- diag (_row_bounds and overlay)
+-- ---------------------------------------------------------------------------
+suite("diag")
+local diag = require("touchup.diag")
+local api = vim.api
+
+-- _row_bounds: column math for both diagnostic forms
+local s, e
+s, e = diag._row_bounds({ lnum = 0, col = 2, end_lnum = 0, end_col = 5 }, 0)
+ok(s == 2 and e == 5, "_row_bounds single-line row")
+ok(diag._row_bounds({ lnum = 0, col = 2, end_lnum = 0, end_col = 5 }, 1) == nil, "_row_bounds single-line other row")
+ok(diag._row_bounds({ lnum = 1, col = 3, end_lnum = 3, end_col = 7 }, 0) == nil, "_row_bounds before start row")
+s, e = diag._row_bounds({ lnum = 1, col = 3, end_lnum = 3, end_col = 7 }, 1)
+ok(s == 3 and e == math.huge, "_row_bounds multiline start row")
+s, e = diag._row_bounds({ lnum = 1, col = 3, end_lnum = 3, end_col = 7 }, 2)
+ok(s == 0 and e == math.huge, "_row_bounds multiline middle row")
+s, e = diag._row_bounds({ lnum = 1, col = 3, end_lnum = 3, end_col = 7 }, 3)
+ok(s == 0 and e == 7, "_row_bounds multiline end row")
+s, e = diag._row_bounds({ range = { start = { 1, 3 }, ["end"] = { 3, 7 } } }, 2)
+ok(s == 0 and e == math.huge, "_row_bounds range form")
+
+-- overlay: real buffer + diagnostics
+local d_buf = api.nvim_create_buf(false, true)
+api.nvim_buf_set_lines(d_buf, 0, -1, false, { "before [label](http://broken.com) after" })
+api.nvim_set_hl(0, "DiagnosticUnderlineError", { undercurl = true, sp = "#ff0000" })
+api.nvim_set_hl(0, "TouchupDiagTestBase", { underdotted = true, foreground = "#123456" })
+vim.diagnostic.set(api.nvim_create_namespace("touchup_test_diag"), d_buf, {
+	{ lnum = 0, col = 15, end_lnum = 0, end_col = 32, severity = vim.diagnostic.severity.ERROR, message = "broken link" },
+})
+
+ok(diag.overlay(d_buf, 0, 0, "TouchupDiagTestBase", 5) == "TouchupDiagTestBase", "overlay without diagnostic returns base")
+ok(diag.overlay(d_buf, 0, 14, "TouchupDiagTestBase", 15) == "TouchupDiagTestBase", "overlay before diagnostic range returns base")
+ok(diag.overlay(d_buf, 0, 32, "TouchupDiagTestBase", 33) == "TouchupDiagTestBase", "overlay after diagnostic range returns base")
+
+local m = diag.overlay(d_buf, 0, 15, "TouchupDiagTestBase", 32)
+ok(m ~= "TouchupDiagTestBase", "overlay on diagnostic range returns merged group")
+local mh = api.nvim_get_hl(0, { name = m, link = false })
+ok(mh.undercurl == true, "merged group carries the diagnostic undercurl")
+ok(mh.underdotted ~= true, "merged group drops the base underline style")
+ok((mh.fg or mh.foreground) == 0x123456, "merged group keeps base colors")
+
+vim.diagnostic.set(api.nvim_create_namespace("touchup_test_diag"), d_buf, {
+	{ lnum = 0, col = 15, end_lnum = 0, end_col = 32, severity = vim.diagnostic.severity.ERROR, message = "broken link" },
+	{ lnum = 0, col = 15, end_lnum = 0, end_col = 20, severity = vim.diagnostic.severity.WARN, message = "also warn" },
+})
+ok(diag.overlay(d_buf, 0, 15, "TouchupDiagTestBase", 32):match("Error") ~= nil, "most severe diagnostic wins")
+
+diag.clear()
+ok(api.nvim_get_hl(0, { name = m, link = false }).undercurl ~= true, "clear unlinks merged groups")
+ok(diag.overlay(d_buf, 0, 15, "TouchupDiagTestBase", 32) == m, "overlay rebuilds merged group after clear")
 
 -- ---------------------------------------------------------------------------
+-- enter (smart_enter callback)
+-- ---------------------------------------------------------------------------
+suite("enter")
+local api = vim.api
 -- enter (smart_enter callback)
 -- ---------------------------------------------------------------------------
 suite("enter")

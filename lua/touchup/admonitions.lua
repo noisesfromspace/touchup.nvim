@@ -1,6 +1,7 @@
 local M = {}
 
 local api = vim.api
+local diag = require("touchup.diag")
 
 local query
 
@@ -32,7 +33,7 @@ function M.render(ns, bufnr, start_row, end_row, root)
 			-- Color the [!TYPE] label
 			api.nvim_buf_set_extmark(bufnr, ns, srow, bcol - 1, {
 				end_col = ecol,
-				hl_group = hl,
+				hl_group = diag.overlay(bufnr, srow, bcol - 1, hl, ecol),
 				priority = 150,
 				ephemeral = true,
 			})
@@ -43,7 +44,7 @@ function M.render(ns, bufnr, start_row, end_row, root)
 				if gt then
 					api.nvim_buf_set_extmark(bufnr, ns, r, gt - 1, {
 						end_col = gt,
-						hl_group = hl,
+						hl_group = diag.overlay(bufnr, r, gt - 1, hl, gt),
 						priority = 150,
 						ephemeral = true,
 					})

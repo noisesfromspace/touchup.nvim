@@ -12,6 +12,7 @@ local quotes = require("touchup.quotes")
 local admonitions = require("touchup.admonitions")
 local links = require("touchup.links")
 local enter = require("touchup.enter")
+local diag = require("touchup.diag")
 
 local NAMESPACE = api.nvim_create_namespace("touchup")
 local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
@@ -45,6 +46,14 @@ function M.setup(user)
 		callback = function(args)
 			attached[args.buf] = nil
 			ticks[args.buf] = nil
+		end,
+	})
+	-- Merged diagnostic overlay groups cache the current colorscheme's colors;
+	-- rebuild them after a colorscheme change.
+	api.nvim_create_autocmd("ColorScheme", {
+		group = GROUP,
+		callback = function()
+			diag.clear()
 		end,
 	})
 
