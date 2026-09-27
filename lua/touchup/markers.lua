@@ -21,7 +21,11 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 	end
 
 	for _, tree in ipairs(itrees) do
-		for _, node in query:iter_captures(tree:root(), bufnr, start_row, end_row) do
+		-- itrees is one tree per inline region in the whole buffer; skip
+		-- trees outside the visible range before creating a query cursor.
+		local tsr, _, ter = tree:root():range()
+		if ter >= start_row and tsr < end_row then
+			for _, node in query:iter_captures(tree:root(), bufnr, start_row, end_row) do
 			local srow, scol, erow, ecol = node:range()
 			if srow == erow then
 				local text = vim.treesitter.get_node_text(node, bufnr)
@@ -77,6 +81,7 @@ function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 						})
 					end
 				end
+			end
 			end
 		end
 	end

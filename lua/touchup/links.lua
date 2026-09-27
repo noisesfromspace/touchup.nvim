@@ -3,8 +3,6 @@ local M = {}
 local api = vim.api
 
 local query
-local image_query
-local autolink_query
 
 local format_hl = {
 	strong_emphasis = "TouchupLinkLabelBold",
@@ -190,48 +188,35 @@ end
 
 ---Dim brackets, parens, and URL. Apply underdotted to the link
 ---text and bare URLs. Links inside headings and blockquotes are skipped.
----itrees is one tree per inline region in the buffer.
+---itrees is one tree per inline region in the buffer; trees outside the
+---visible range are skipped up front (long buffers have thousands).
 function M.render(ns, bufnr, start_row, end_row, itrees, block_root)
 	if not itrees then
 		return
 	end
 
 	if not query then
-		query = vim.treesitter.query.parse("markdown_inline", "(inline_link) @link")
-	end
-	if not image_query then
-		image_query = vim.treesitter.query.parse("markdown_inline", "(image) @img")
-	end
-	if not autolink_query then
-		autolink_query = vim.treesitter.query.parse(
+		query = vim.treesitter.query.parse(
 			"markdown_inline",
-			"[(uri_autolink) (email_autolink)] @autolink"
+			"(inline_link) @link (image) @img [(uri_autolink) (email_autolink)] @autolink"
 		)
 	end
 
 	for _, tree in ipairs(itrees) do
-		for _, node in query:iter_captures(tree:root(), bufnr, start_row, end_row) do
-			local srow, scol = node:range()
-			if not skip_node(bufnr, block_root, srow, scol) then
-				style_node_children(ns, bufnr, node, "link_text")
-			end
-		end
-	end
-
-	for _, tree in ipairs(itrees) do
-		for _, node in image_query:iter_captures(tree:root(), bufnr, start_row, end_row) do
-			local srow, scol = node:range()
-			if not skip_node(bufnr, block_root, srow, scol) then
-				style_node_children(ns, bufnr, node, "image_description")
-			end
-		end
-	end
-
-	for _, tree in ipairs(itrees) do
-		for _, node in autolink_query:iter_captures(tree:root(), bufnr, start_row, end_row) do
-			local srow, scol = node:range()
-			if not skip_node(bufnr, block_root, srow, scol) then
-				style_autolink(ns, bufnr, node)
+		local tsr, _, ter = tree:root():range()
+		if ter >= start_row and tsr < end_row then
+			for id, node in query:iter_captures(tree:root(), bufnr, start_row, end_row) do
+				local srow, scol = node:range()
+				if not skip_node(bufnr, block_root, srow, scol) then
+					local capture = query.captures[id]
+					if capture == "link" then
+						style_node_children(ns, bufnr, node, "link_text")
+					elseif capture == "img" then
+						style_node_children(ns, bufnr, node, "image_description")
+					else
+						style_autolink(ns, bufnr, node)
+					end
+				end
 			end
 		end
 	end
