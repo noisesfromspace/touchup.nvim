@@ -60,7 +60,10 @@ function M.render(ns, bufnr, start_row, end_row, root)
 	end
 
 	local tool_spans = {} -- painted tool regions, to skip nested blocks
-	for _, node in query:iter_captures(root, bufnr, start_row, end_row) do
+	-- Scan from the buffer top, not start_row: a tool region taller than
+	-- the window must keep its background after the opener has scrolled
+	-- out of view (the closer still paints via its own html_block).
+	for _, node in query:iter_captures(root, bufnr, 0, end_row) do
 		local srow, _, erow = node:range()
 
 		local nested = false
