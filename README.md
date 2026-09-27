@@ -10,7 +10,8 @@ Most markdown plugins make notes prettier by hiding things: URLs collapse, multi
 
 - List bullets get icons that change with nesting depth (✸ ✿ ✦ ✧). _"We have org mode at home".jpg_
 - Checkboxes show obsidian-style state icons inside the brackets: `[x]`, `[ ]`, `[!]`, `[>]` and more.
-- Code blocks and block quotes get a subtle background. Quotes also render in cursive.
+- Code blocks, block quotes and HTML comment blocks get a subtle background. Quotes also render in cursive.
+- Comment blocks with a type word (`<!-- pitel:thinking`, `<!-- pitel:error`, `<!-- note`) get the word colored per kind; a `pitel:tool` region is painted as one span up to its closer.
 - `**`, `~~` and backtick markers are dimmed, not hidden.
 - Link brackets, parens and URLs are dimmed so labels read like prose.
 - GFI admonitions (`[!NOTE]`, `[!WARNING]`, etc.) get type-colored labels.
@@ -72,6 +73,7 @@ require("touchup").setup({
     },
   },
   code_blocks = { enabled = true },
+  comment_blocks = { enabled = true },
   markers = { enabled = true },
   quotes = { enabled = true },
   enter = { enabled = true },

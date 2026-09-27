@@ -43,6 +43,7 @@ ok(cfg.quotes.enabled == true, "quotes default enabled")
 ok(cfg.enter.enabled == true, "enter default enabled")
 ok(cfg.links.enabled == true, "links default enabled")
 ok(cfg.admonitions.enabled == true, "admonitions default enabled")
+ok(cfg.comment_blocks.enabled == true, "comment_blocks default enabled")
 ok(vim.deep_equal(cfg.filetypes, { "markdown" }), "filetypes default")
 ok(cfg.headings == nil, "headings config removed")
 
@@ -217,6 +218,46 @@ seg(
 	{ { "<", "TouchupDim" }, { "user@example.com", "TouchupLinkLabel" }, { ">", "TouchupDim" } },
 	links.build_autolink_segments("<user@example.com>")
 )
+
+-- ---------------------------------------------------------------------------
+-- commentblocks (type extraction and tool region scan)
+-- ---------------------------------------------------------------------------
+suite("commentblocks")
+local commentblocks = require("touchup.commentblocks")
+
+local function type_is(want, line)
+	local got = commentblocks.type_of(line)
+	ok(got == want, ("type_of %q -> %s"):format(line, tostring(got)))
+end
+type_is("thinking", "<!-- pitel:thinking")
+type_is("error", "<!-- pitel:error")
+type_is("tool", '<!-- pitel:tool {"id":"call_1"} -->')
+type_is("usage", "<!-- pitel:usage {} -->")
+type_is("note", "<!-- note")
+type_is("todo", "  <!-- todo: indent ok")
+type_is(nil, "<!-- /pitel:tool -->")
+type_is(nil, "plain text")
+type_is(nil, "--> stray closer")
+
+-- label span covers `pitel:thinking`, not the `<!--` prefix
+local t, s, e = commentblocks.type_of("<!-- pitel:thinking")
+ok(t == "thinking" and s == 6 and e == 19, "type_of returns pitel: label span")
+local t2, s2, e2 = commentblocks.type_of("<!-- note")
+ok(t2 == "note" and s2 == 6 and e2 == 9, "type_of returns generic label span")
+
+local region = {
+	"<!-- pitel:tool {\"id\":\"c1\",\"name\":\"edit\"} -->", -- 1
+	"Successfully replaced 1 block(s) in main.go.",
+	"<!-- pitel:ui",
+	"```diff",
+	"# not a heading, diff context",
+	"-->",
+	"<!-- /pitel:tool -->", -- 7
+	"after",
+}
+ok(commentblocks.find_tool_end(region, 1) == 7, "find_tool_end finds closer")
+ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "# @user", "<!-- /pitel:tool -->" }, 1) == nil, "find_tool_end stops at heading")
+ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "result" }, 1) == nil, "find_tool_end unclosed -> nil")
 
 -- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)

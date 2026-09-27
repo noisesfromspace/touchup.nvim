@@ -6,6 +6,7 @@ local config = require("touchup.config")
 local hl = require("touchup.hl")
 local bullets = require("touchup.bullets")
 local codeblocks = require("touchup.codeblocks")
+local commentblocks = require("touchup.commentblocks")
 local checkboxes = require("touchup.checkboxes")
 local markers = require("touchup.markers")
 local quotes = require("touchup.quotes")
@@ -40,10 +41,11 @@ function M.setup(user)
 		})
 	end
 
-	-- Clean up tracking state when a buffer is deleted
+	-- Clean up tracking state when a buffer is deleted. No pattern:
+	-- BufDelete matches buffer names, not filetypes, so a filetype pattern
+	-- would silently never fire.
 	api.nvim_create_autocmd("BufDelete", {
 		group = GROUP,
-		pattern = cfg.filetypes,
 		callback = function(args)
 			attached[args.buf] = nil
 			ticks[args.buf] = nil
@@ -108,6 +110,10 @@ function M.setup(user)
 
 			if cfg.code_blocks.enabled then
 				codeblocks.render(NAMESPACE, bufnr, topline, last, root)
+			end
+
+			if cfg.comment_blocks.enabled then
+				commentblocks.render(NAMESPACE, bufnr, topline, last, root)
 			end
 
 			if cfg.checkboxes.enabled then

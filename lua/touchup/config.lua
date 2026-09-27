@@ -12,6 +12,9 @@ M.defaults = {
 	code_blocks = {
 		enabled = true,
 	},
+	comment_blocks = {
+		enabled = true,
+	},
 	checkboxes = {
 		enabled = true,
 		-- Obsidian-style checkbox states. Standard `[ ]`/`[x]` are handled via
