@@ -35,16 +35,55 @@ end
 ---Find the closing `<!-- /pitel:tool` line of a tool region.
 ---lines: full buffer lines (1-based), opener: 1-based opener line.
 ---Returns the 1-based closer line, or nil. Capped at the next `# @role`
----heading (tool results can legitimately contain markdown headings) so an
----unclosed region cannot swallow the rest of the buffer.
+---heading OUTSIDE a fenced code block or legacy `<!-- pitel:ui` comment
+---(fenced results can contain `# @user` lines; a ``` inside a comment is
+---not a fence) so an unclosed region cannot swallow the buffer.
+local function fence_run(line)
+	local ws = line:match("^%s*")
+	if #ws > 3 then
+		return nil
+	end
+	local rest = line:sub(#ws + 1)
+	local c = rest:sub(1, 1)
+	if c ~= "`" and c ~= "~" then
+		return nil
+	end
+	local n = 0
+	while rest:sub(n + 1, n + 1) == c do
+		n = n + 1
+	end
+	if n < 3 then
+		return nil
+	end
+	return c, n, rest:sub(n + 1)
+end
+
 function M.find_tool_end(lines, opener)
+	local fence -- open fence: { char, n }
+	local in_comment = false -- legacy `<!-- pitel:ui … -->` comment
 	for i = opener + 1, #lines do
 		local l = lines[i]
-		if l:match("^%s*<!%-%-%s*/pitel:tool") then
+		if in_comment then
+			if l:match("^%-%->%s*$") then
+				in_comment = false
+			end
+		elseif fence then
+			-- inside a fenced block: literal until a matching closer
+			local c, n, tail = fence_run(l)
+			if c == fence.char and n >= fence.n and tail:match("^%s*$") then
+				fence = nil
+			end
+		elseif l:match("^%s*<!%-%-%s*/pitel:tool") then
 			return i
-		end
-		if l:match("^# @%a+%s*$") then
+		elseif l:match("^# @%a+%s*$") then
 			return nil
+		elseif l:match("^%s*<!%-%-%s*pitel:ui%s*$") then
+			in_comment = true -- legacy multi-line ui: raw until `-->`
+		else
+			local c, n = fence_run(l)
+			if c then
+				fence = { char = c, n = n }
+			end
 		end
 	end
 	return nil

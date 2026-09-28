@@ -257,6 +257,7 @@ local region = {
 }
 ok(commentblocks.find_tool_end(region, 1) == 7, "find_tool_end finds closer")
 ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "# @user", "<!-- /pitel:tool -->" }, 1) == nil, "find_tool_end stops at heading")
+ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "```", "# @user", "```", "<!-- /pitel:tool -->" }, 1) == 5, "find_tool_end ignores heading inside fence")
 ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "result" }, 1) == nil, "find_tool_end unclosed -> nil")
 
 -- ---------------------------------------------------------------------------

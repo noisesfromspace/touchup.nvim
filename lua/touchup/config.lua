@@ -2,9 +2,6 @@ local M = {}
 
 M.defaults = {
 	filetypes = { "markdown" },
-	-- Buffers with more lines than this skip touchup decoration entirely and
-	-- fall back to Vim's built-in conceal (conceallevel=2).
-	max_lines = 5000,
 	bullets = {
 		enabled = true,
 		icons = { "✸", "✿", "✦", "✧" },
