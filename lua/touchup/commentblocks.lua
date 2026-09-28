@@ -2,8 +2,6 @@ local M = {}
 
 local api = vim.api
 
-local query
-
 -- Label highlight per comment type word (the `thinking` in
 -- `<!-- pitel:thinking`). Types without an entry use TouchupCommentBlockLabel.
 local type_hl = {
@@ -89,55 +87,119 @@ function M.find_tool_end(lines, opener)
 	return nil
 end
 
----Render HTML comment block backgrounds for a range. Called from the
----decoration provider, so extmarks are ephemeral and root is the shared
----parse tree. A `<!-- pitel:tool` opener extends its background over the
----whole region (result text, pitel:ui subsection) up to its closer.
-function M.render(ns, bufnr, start_row, end_row, root)
-	if not query then
-		query = vim.treesitter.query.parse("markdown", "(html_block) @block")
+-- CommonMark starts an HTML block (type 2) at any `<!--`, so a wordless
+-- block and a `<!-- /pitel:tool -->` closer are blocks too; they simply
+-- carry no label.
+local COMMENT = "^%s*<!%-%-"
+
+---Last line covered by a comment block that starts on line i (1-based).
+---A single-line comment ends on its own line; a multi-line one ends on the
+---first line containing `-->`. The agent always emits that closer alone on
+---a line, and neutralizes `-->` inside comment text, so the first `-->`
+---reliably ends the block.
+local function comment_end(lines, i, n)
+	if lines[i]:find("%-%->") then
+		return i
 	end
+	for j = i + 1, n do
+		if lines[j]:find("%-%->") then
+			return j
+		end
+	end
+	return n
+end
 
-	local tool_spans = {} -- painted tool regions, to skip nested blocks
-	-- One fetch per render pass, shared by every find_tool_end call below.
-	-- (Previously each tool block refetched up to 2000 lines from the top,
-	-- so a long session paid tens of thousands of line copies per scroll.)
-	local lines = api.nvim_buf_get_lines(bufnr, 0, end_row, false)
-	-- Scan from the buffer top, not start_row: a tool region taller than
-	-- the window must keep its background after the opener has scrolled
-	-- out of view (the closer still paints via its own html_block).
-	for _, node in query:iter_captures(root, bufnr, 0, end_row) do
-		local srow, _, erow = node:range()
-
-		local nested = false
-		for _, s in ipairs(tool_spans) do
-			if srow > s[1] and srow < s[2] then
-				nested = true
-				break
+---Comment-region spans for a buffer's lines, in document order.
+---
+---Pure logic over the line list (1-based `lines`, as find_tool_end takes),
+---so it is unit-testable without a parser. Each span is
+---`{ srow, erow, ctype, lstart, lend }` where `srow` is the 0-based row of
+---the block's first line (an extmark row) and `erow` is the 1-based index
+---of its last covered line, which is at the same time the exclusive
+---0-based end row — for a tool region that is its `<!-- /pitel:tool`
+---closer.
+---
+---A single forward pass: markers inside a fenced code block are literal
+---(a `cat` of a tool result can contain `<!-- pitel:tool`), a tool region
+---is one span covering its header, result and ui subsection, and a legacy
+---`<!-- pitel:ui` comment inside it is part of that span rather than a
+---block of its own.
+function M.spans(lines)
+	local list = {}
+	local n = #lines
+	local fence -- open fence: { char, n }
+	local i = 1
+	while i <= n do
+		local l = lines[i]
+		if fence then
+			local c, k, tail = fence_run(l)
+			if c == fence.char and k >= fence.n and tail:match("^%s*$") then
+				fence = nil
+			end
+		elseif l:match(COMMENT) then
+			local ctype, lstart, lend = M.type_of(l)
+			local erow
+			if ctype == "tool" then
+				erow = M.find_tool_end(lines, i) or comment_end(lines, i, n)
+			else
+				erow = comment_end(lines, i, n)
+			end
+			list[#list + 1] = { i - 1, erow, ctype, lstart, lend }
+			i = erow
+		else
+			local c, k = fence_run(l)
+			if c then
+				fence = { char = c, n = k }
 			end
 		end
+		i = i + 1
+	end
+	return list
+end
 
-		if not nested then
-			local first = (api.nvim_buf_get_lines(bufnr, srow, srow + 1, false))[1] or ""
-			local ctype, lstart, lend = M.type_of(first)
+---Span cache: rebuilding the list is an O(buffer) pass, so it is done once
+---per buffer change (changedtick) instead of once per redraw. Scrolling
+---with an unchanged buffer then costs nothing but the marks for the drawn
+---rows, which is what keeps a long session responsive.
+local cache = {}
 
-			if ctype == "tool" then
-				local closer = M.find_tool_end(lines, srow + 1)
-				if closer then
-					erow = closer -- 1-based closer line == exclusive 0-based end row
-					table.insert(tool_spans, { srow, erow })
-				end
-			end
+---Drop a buffer's cached spans (called on BufDelete).
+function M.clear(bufnr)
+	cache[bufnr] = nil
+end
 
-			api.nvim_buf_set_extmark(bufnr, ns, srow, 0, {
-				end_row = erow,
+---Render HTML comment block backgrounds for the drawn range. Called from
+---the decoration provider, so extmarks are ephemeral. A `<!-- pitel:tool`
+---opener extends its background over the whole region (result text,
+---pitel:ui subsection) up to its closer.
+function M.render(ns, bufnr, start_row, end_row)
+	local tick = api.nvim_buf_get_changedtick(bufnr)
+	local n = api.nvim_buf_line_count(bufnr)
+	local c = cache[bufnr]
+	if not (c and c.tick == tick and c.n == n) then
+		c = { tick = tick, n = n, list = M.spans(api.nvim_buf_get_lines(bufnr, 0, n, false)) }
+		cache[bufnr] = c
+	end
+
+	for _, s in ipairs(c.list) do
+		local srow, erow, ctype, lstart, lend = s[1], s[2], s[3], s[4], s[5]
+		if erow > start_row and srow < end_row then
+			-- Clamp to the drawn range: ephemeral marks do not survive the
+			-- redraw, so covering rows that are not being drawn only costs
+			-- time. A region straddling the top of the window still gets its
+			-- background (the mark starts at start_row).
+			local a = srow < start_row and start_row or srow
+			local b = erow > end_row and end_row or erow
+			api.nvim_buf_set_extmark(bufnr, ns, a, 0, {
+				end_row = b,
 				hl_group = "TouchupCommentBlock",
 				hl_eol = true,
 				ephemeral = true,
 			})
 
 			-- Color the type word on the opener line, admonition-style.
-			if ctype then
+			-- Only meaningful when the opener is drawn.
+			if ctype and srow >= start_row and srow < end_row then
 				api.nvim_buf_set_extmark(bufnr, ns, srow, lstart - 1, {
 					end_col = lend,
 					hl_group = type_hl[ctype] or "TouchupCommentBlockLabel",

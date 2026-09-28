@@ -47,6 +47,7 @@ function M.setup(user)
 		callback = function(args)
 			attached[args.buf] = nil
 			ticks[args.buf] = nil
+			commentblocks.clear(args.buf)
 		end,
 	})
 
@@ -90,7 +91,7 @@ function M.setup(user)
 			end
 
 			if cfg.comment_blocks.enabled then
-				commentblocks.render(NAMESPACE, bufnr, topline, last, root)
+				commentblocks.render(NAMESPACE, bufnr, topline, last)
 			end
 
 			if cfg.checkboxes.enabled then

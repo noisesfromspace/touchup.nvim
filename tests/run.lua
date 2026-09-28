@@ -260,6 +260,65 @@ ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "# @user", "<!-- /pit
 ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "```", "# @user", "```", "<!-- /pitel:tool -->" }, 1) == 5, "find_tool_end ignores heading inside fence")
 ok(commentblocks.find_tool_end({ "<!-- pitel:tool {} -->", "result" }, 1) == nil, "find_tool_end unclosed -> nil")
 
+-- spans: one forward pass over the lines, fence- and comment-aware. Shape is
+-- "<srow>-<erow>:<ctype>" per span, erow being the 1-based last covered line.
+local function shapes(lines)
+	local out = {}
+	for _, s in ipairs(commentblocks.spans(lines)) do
+		out[#out + 1] = ("%d-%d:%s"):format(s[1], s[2], tostring(s[3]))
+	end
+	return table.concat(out, " ")
+end
+
+ok(shapes({}) == "", "no lines -> no spans")
+ok(shapes({ "plain text" }) == "", "no comments -> no spans")
+ok(
+	shapes({ "<!-- pitel:tool {}", "result", "<!-- /pitel:tool -->" }) == "0-3:tool",
+	"tool region is one span, header through closer"
+)
+ok(
+	shapes({
+		"<!-- pitel:tool",
+		"{",
+		'  "name": "write"',
+		"}",
+		"-->",
+		"ok",
+		"<!-- /pitel:tool -->",
+	}) == "0-7:tool",
+	"multi-line header: one span"
+)
+ok(
+	shapes({ "<!-- pitel:thinking", "hmm", "-->" }) == "0-3:thinking",
+	"thinking spans to its --> closer"
+)
+ok(shapes({ "<!-- pitel:usage {} -->" }) == "0-1:usage", "single-line comment is one line")
+ok(
+	shapes({ "<!-- pitel:tool {}", "<!-- pitel:ui", "```diff", "a", "-->", "<!-- /pitel:tool -->" })
+		== "0-6:tool",
+	"legacy ui comment is part of the region, not a span of its own"
+)
+ok(
+	shapes({ "```", "<!-- pitel:tool {fake}", "# @user", "```", "<!-- pitel:tool {}", "<!-- /pitel:tool -->" })
+		== "4-6:tool",
+	"a marker inside a fence is literal content"
+)
+ok(
+	shapes({ "<!-- /pitel:tool -->" }) == "0-1:nil",
+	"a closer is a block, just without a label"
+)
+ok(shapes({ "<!-- note", "body", "-->", "text" }) == "0-3:note", "generic comment block")
+ok(shapes({ "text", "<!-- hi -->", "text" }) == "1-2:hi", "single-line comment gets its label")
+ok(shapes({ "text", "<!-- -->", "text" }) == "1-2:nil", "wordless comment is a block without a label")
+ok(
+	shapes({ "# @user", "", "<!-- pitel:tool {}", "unclosed" }) == "2-4:tool",
+	"an unclosed region runs to the end of the buffer"
+)
+
+-- clear() drops a buffer's cached spans (wired to BufDelete)
+commentblocks.clear(0)
+ok(true, "clear(0) does not throw")
+
 -- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)
 -- ---------------------------------------------------------------------------
