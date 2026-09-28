@@ -60,6 +60,10 @@ function M.render(ns, bufnr, start_row, end_row, root)
 	end
 
 	local tool_spans = {} -- painted tool regions, to skip nested blocks
+	-- One fetch per render pass, shared by every find_tool_end call below.
+	-- (Previously each tool block refetched up to 2000 lines from the top,
+	-- so a long session paid tens of thousands of line copies per scroll.)
+	local lines = api.nvim_buf_get_lines(bufnr, 0, end_row, false)
 	-- Scan from the buffer top, not start_row: a tool region taller than
 	-- the window must keep its background after the opener has scrolled
 	-- out of view (the closer still paints via its own html_block).
@@ -79,8 +83,6 @@ function M.render(ns, bufnr, start_row, end_row, root)
 			local ctype, lstart, lend = M.type_of(first)
 
 			if ctype == "tool" then
-				local last = api.nvim_buf_line_count(bufnr)
-				local lines = api.nvim_buf_get_lines(bufnr, 0, math.min(last, srow + 2000), false)
 				local closer = M.find_tool_end(lines, srow + 1)
 				if closer then
 					erow = closer -- 1-based closer line == exclusive 0-based end row
