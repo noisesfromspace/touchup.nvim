@@ -206,6 +206,13 @@ local function schedule_spans(bufnr)
 			return
 		end
 		rebuild_spans(bufnr)
+		-- Ephemeral marks only live for one redraw, and on_win only runs on a
+		-- redraw. The rebuilt spans change what should be painted (e.g. a
+		-- streamed tool region now has its closer), so force a redraw rather
+		-- than leaving the stale render until the next input. valid=true
+		-- (UPD_VALID) is a no-op for a Lua provider, so use false to actually
+		-- invalidate the drawn lines.
+		vim.api.nvim__redraw({ buf = bufnr, valid = false })
 	end, IDLE_MS)
 end
 

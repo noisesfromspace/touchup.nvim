@@ -80,6 +80,11 @@ local function schedule_reparse(bufnr, parser)
 		local ok, c = pcall(full_reparse, bufnr, parser)
 		if ok and c then
 			parse_cache[bufnr] = c
+			-- The fresh tree changes what code blocks, bullets, links and
+			-- markers should draw, but on_win only runs on a redraw. Force one
+			-- so the re-parsed decorations appear now, not after the next
+			-- interaction (valid=true / UPD_VALID is a no-op for Lua providers).
+			vim.api.nvim__redraw({ buf = bufnr, valid = false })
 		end
 	end, IDLE_MS)
 end

@@ -325,6 +325,49 @@ ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 10) == "reuse", "unchan
 ok(commentblocks._span_decision({ tick = 1, n = 10 }, 2, 10) == "defer", "tick changed -> defer")
 ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 11) == "defer", "line count changed -> defer")
 
+-- A deferred rebuild only takes effect once it is drawn: ephemeral marks
+-- live for one redraw, and on_win only runs on a redraw. The idle rebuild
+-- must therefore schedule a redraw, or a streamed tool region stays
+-- unpainted until the user interacts with the buffer.
+do
+	local api = vim.api
+	local orig_set = api.nvim_buf_set_extmark
+	local orig_redraw = api.nvim__redraw
+	local redraws = {}
+	api.nvim_buf_set_extmark = function()
+		return 0
+	end
+	api.nvim__redraw = function(opts)
+		redraws[#redraws + 1] = opts
+	end
+
+	local buf = api.nvim_create_buf(false, true)
+	vim.bo[buf].filetype = "markdown"
+	api.nvim_buf_set_lines(buf, 0, -1, false, {
+		"# @assistant",
+		'<!-- pitel:tool {"id":"w1","name":"write"} -->',
+		"ok",
+		"<!-- /pitel:tool -->",
+	})
+	commentblocks.render("ns", buf, 0, 4) -- first: build synchronously
+	ok(#redraws == 0, "first span build does not redraw")
+
+	api.nvim_buf_set_lines(buf, -1, -1, false, { "", "# @user" }) -- bump tick
+	commentblocks.render("ns", buf, 0, 6)
+	ok(#redraws == 0, "defer serves stale spans without an immediate redraw")
+
+	vim.wait(1700) -- idle window (IDLE_MS=1500) elapses, rebuild fires
+	ok(#redraws > 0, "idle span rebuild triggers a redraw")
+	ok(
+		redraws[1] and redraws[1].buf == buf and redraws[1].valid == false,
+		"idle span rebuild forces a full redraw (valid=false)"
+	)
+
+	commentblocks.clear(buf)
+	api.nvim_buf_set_extmark = orig_set
+	api.nvim__redraw = orig_redraw
+end
+
 -- ---------------------------------------------------------------------------
 -- tree cache decision (parse once per change, defer re-parse to idle)
 -- ---------------------------------------------------------------------------
