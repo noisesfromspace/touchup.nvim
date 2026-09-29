@@ -320,6 +320,15 @@ commentblocks.clear(0)
 ok(true, "clear(0) does not throw")
 
 -- ---------------------------------------------------------------------------
+-- tree cache decision (parse once per change, defer re-parse to idle)
+-- ---------------------------------------------------------------------------
+suite("tree cache")
+local init = require("touchup")
+ok(init._tree_decision(nil, 1) == "first", "no cached tree -> parse now")
+ok(init._tree_decision({ tick = 1 }, 1) == "reuse", "unchanged tick -> reuse the tree")
+ok(init._tree_decision({ tick = 1 }, 2) == "defer", "changed tick -> serve stale + reparse on idle")
+
+-- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)
 -- ---------------------------------------------------------------------------
 suite("enter")

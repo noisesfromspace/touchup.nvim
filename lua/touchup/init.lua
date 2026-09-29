@@ -16,8 +16,70 @@ local enter = require("touchup.enter")
 
 local NAMESPACE = api.nvim_create_namespace("touchup")
 local GROUP = api.nvim_create_augroup("Touchup", { clear = true })
-local ticks = {}
 local attached = {}
+
+-- Treesitter tree cache, keyed by buffer. The tree is re-parsed at most once
+-- per buffer change, and only after the buffer has been quiet for IDLE_MS: a
+-- reply streaming in is a stream of small edits, and a whole-document reparse
+-- per chunk is what made holding j/k lag mid-stream (a 24k-line session
+-- re-parse costs tens to hundreds of ms, depending on which block the tail is
+-- inside). Serving the last tree while the buffer changes is safe for a
+-- streamed tail append (the tree simply has no nodes for the new lines); a
+-- mid-buffer edit is only transiently stale for that IDLE_MS window.
+local parse_cache = {} -- bufnr -> { tick, root, itrees }
+local refresh_timers = {} -- bufnr -> timer
+local IDLE_MS = 250
+
+--- Pure cache decision, separated from the provider so it is unit-testable:
+--- how to source the tree for a redraw.
+---   "first"  no cached tree: parse now (one-time cold cost on open)
+---   "reuse"  buffer unchanged since the last parse: use the cached tree
+---   "defer"  buffer changed: serve the cached tree and re-parse when idle
+function M._tree_decision(entry, tick)
+	if not entry then
+		return "first"
+	end
+	if entry.tick == tick then
+		return "reuse"
+	end
+	return "defer"
+end
+
+--- Re-parse the whole buffer and refresh the markdown_inline injections. This
+--- is the expensive part, so it runs only on first parse and after the buffer
+--- has been idle, never on every redraw. parse(true) (rather than a bare
+--- parse()) is what forces a full parse and gives the inline child its trees.
+local function full_reparse(bufnr, parser)
+	local trees = parser:parse(true)
+	local root = trees and trees[1] and trees[1]:root()
+	if not root then
+		return nil
+	end
+	local inline = parser:children().markdown_inline
+	local itrees = inline and inline:parse(true)
+	return { tick = api.nvim_buf_get_changedtick(bufnr), root = root, itrees = itrees }
+end
+
+--- Schedule a re-parse once the buffer has been stable for IDLE_MS. Each edit
+--- that keeps arriving (a streaming reply) pushes the re-parse further out, so
+--- it fires once when the stream pauses, not once per chunk.
+local function schedule_reparse(bufnr, parser)
+	local t = refresh_timers[bufnr]
+	if t then
+		t:stop()
+		t:close()
+	end
+	refresh_timers[bufnr] = vim.defer_fn(function()
+		refresh_timers[bufnr] = nil
+		if not api.nvim_buf_is_valid(bufnr) then
+			return
+		end
+		local ok, c = pcall(full_reparse, bufnr, parser)
+		if ok and c then
+			parse_cache[bufnr] = c
+		end
+	end, IDLE_MS)
+end
 
 ---@param user? table
 function M.setup(user)
@@ -46,23 +108,21 @@ function M.setup(user)
 		group = GROUP,
 		callback = function(args)
 			attached[args.buf] = nil
-			ticks[args.buf] = nil
+			parse_cache[args.buf] = nil
+			local t = refresh_timers[args.buf]
+			if t then
+				t:stop()
+				t:close()
+			end
+			refresh_timers[args.buf] = nil
 			commentblocks.clear(args.buf)
 		end,
 	})
 
-	-- Decoration provider: parse treesitter once per window redraw, share the
-	-- tree across all modules. on_win alone covers every drawn line, so no
-	-- on_line callback is needed.
+	-- Decoration provider: on_win covers every drawn line, so no on_line
+	-- callback is needed. The tree is cached and re-parsed only on a buffer
+	-- change after an idle gap (see full_reparse), not on every redraw.
 	api.nvim_set_decoration_provider(NAMESPACE, {
-		on_start = function(_, tick)
-			local buf = api.nvim_get_current_buf()
-			if ticks[buf] == tick then
-				return false
-			end
-			ticks[buf] = tick
-			return true
-		end,
 		on_win = function(_, _, bufnr, topline, botline)
 			if not vim.tbl_contains(cfg.filetypes, vim.bo[bufnr].filetype) then
 				return false
@@ -73,8 +133,24 @@ function M.setup(user)
 			if not ok then
 				return false
 			end
-			local trees = parser:parse()
-			local root = trees and trees[1] and trees[1]:root()
+
+			local tick = api.nvim_buf_get_changedtick(bufnr)
+			local c = parse_cache[bufnr]
+			local action = M._tree_decision(c, tick)
+
+			local root, itrees
+			if action == "reuse" then
+				root, itrees = c.root, c.itrees
+			elseif action == "first" then
+				c = full_reparse(bufnr, parser)
+				parse_cache[bufnr] = c
+				root = c and c.root
+				itrees = c and c.itrees
+			else -- "defer"
+				root, itrees = c.root, c.itrees
+				schedule_reparse(bufnr, parser)
+			end
+
 			if not root then
 				return false
 			end
@@ -106,7 +182,6 @@ function M.setup(user)
 				admonitions.render(NAMESPACE, bufnr, topline, last, root)
 			end
 
-
 			-- When conceallevel > 0, Vim visually removes formatting characters
 			-- (*, _, `, ~) which shifts visual column positions relative to
 			-- buffer positions. This breaks extmark column coordinates used by
@@ -115,12 +190,6 @@ function M.setup(user)
 			local conceal = winid and vim.wo[winid].conceallevel or 0
 
 			if conceal == 0 then
-        -- parse(true): on Neovim 0.12 a bare parse() on an injected child
-        -- tree returns no trees; true forces a full parse (also one tree per
-        -- inline region, so all must be iterated). Parsed once and shared.
-        local inline = parser:children().markdown_inline
-        local itrees = inline and inline:parse(true)
-
 				if cfg.links.enabled then
 					links.render(NAMESPACE, bufnr, topline, last, itrees, root)
 				end
