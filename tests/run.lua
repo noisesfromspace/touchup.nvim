@@ -315,9 +315,15 @@ ok(
 	"an unclosed region runs to the end of the buffer"
 )
 
--- clear() drops a buffer's cached spans (wired to BufDelete)
+-- clear() drops a buffer's cached spans and pending rebuild (BufDelete)
 commentblocks.clear(0)
 ok(true, "clear(0) does not throw")
+
+-- span cache decision (build once, defer rebuild to idle, like the tree cache)
+ok(commentblocks._span_decision(nil, 1, 10) == "first", "no cached spans -> build now")
+ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 10) == "reuse", "unchanged -> reuse")
+ok(commentblocks._span_decision({ tick = 1, n = 10 }, 2, 10) == "defer", "tick changed -> defer")
+ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 11) == "defer", "line count changed -> defer")
 
 -- ---------------------------------------------------------------------------
 -- tree cache decision (parse once per change, defer re-parse to idle)

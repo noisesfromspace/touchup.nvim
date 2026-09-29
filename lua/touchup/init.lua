@@ -28,7 +28,10 @@ local attached = {}
 -- mid-buffer edit is only transiently stale for that IDLE_MS window.
 local parse_cache = {} -- bufnr -> { tick, root, itrees }
 local refresh_timers = {} -- bufnr -> timer
-local IDLE_MS = 250
+-- 1.5s: long enough that ordinary typing pauses don't trigger a full
+-- re-parse (250ms fired between words), short enough that a streamed reply
+-- settles promptly once it stops.
+local IDLE_MS = 1500
 
 --- Pure cache decision, separated from the provider so it is unit-testable:
 --- how to source the tree for a redraw.
