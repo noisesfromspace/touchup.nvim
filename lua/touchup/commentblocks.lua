@@ -157,74 +157,28 @@ function M.spans(lines)
 	return list
 end
 
----Span cache, keyed by buffer. Rebuilding the list is an O(buffer) pass,
----and typing bumps changedtick on every keystroke, so a rebuild per change
----was a rebuild per keystroke (~6ms on a large session). Like the tree cache
----in init.lua, spans are rebuilt once the buffer has been quiet for IDLE_MS,
----serving the last list in the meantime: freshly typed prose adds no spans,
----and a mid-buffer edit is only transiently stale for that window.
-local cache = {} -- bufnr -> { tick, n, list }
-local refresh_timers = {} -- bufnr -> timer
-local IDLE_MS = 1500
+---Span cache, keyed by buffer. The scanner is linear and independent of
+---Tree-sitter. Never serve spans from an older changedtick: that made
+---streamed/opened blocks disappear or retain the wrong extent until idle.
+local cache = {} -- bufnr -> { tick, list }
 
---- Pure cache decision, separated from the provider so it is unit-testable:
---- how to source the spans for a redraw.
----   "first"  no cached list: build now (one-time cold cost on open)
----   "reuse"  buffer unchanged since the last build: use the cached list
----   "defer"  buffer changed: serve the cached list and rebuild when idle
-function M._span_decision(entry, tick, n)
-	if not entry then
-		return "first"
-	end
-	if entry.tick == tick and entry.n == n then
-		return "reuse"
-	end
-	return "defer"
-end
-
---- Rebuild the span list for a buffer.
-local function rebuild_spans(bufnr)
-	local n = api.nvim_buf_line_count(bufnr)
-	cache[bufnr] = {
-		tick = api.nvim_buf_get_changedtick(bufnr),
-		n = n,
-		list = M.spans(api.nvim_buf_get_lines(bufnr, 0, n, false)),
-	}
-end
-
---- Rebuild once the buffer has been stable for IDLE_MS. Each keystroke pushes
---- the rebuild out, so it fires once when typing pauses, not per keystroke.
-local function schedule_spans(bufnr)
-	local t = refresh_timers[bufnr]
-	if t then
-		t:stop()
-		t:close()
-	end
-	refresh_timers[bufnr] = vim.defer_fn(function()
-		refresh_timers[bufnr] = nil
-		if not api.nvim_buf_is_valid(bufnr) then
-			return
-		end
-		rebuild_spans(bufnr)
-		-- Ephemeral marks only live for one redraw, and on_win only runs on a
-		-- redraw. The rebuilt spans change what should be painted (e.g. a
-		-- streamed tool region now has its closer), so force a redraw rather
-		-- than leaving the stale render until the next input. valid=true
-		-- (UPD_VALID) is a no-op for a Lua provider, so use false to actually
-		-- invalidate the drawn lines.
-		vim.api.nvim__redraw({ buf = bufnr, valid = false })
-	end, IDLE_MS)
-end
-
----Drop a buffer's cached spans and pending rebuild (called on BufDelete).
+---Drop a buffer's cached spans (called on BufDelete).
 function M.clear(bufnr)
 	cache[bufnr] = nil
-	local t = refresh_timers[bufnr]
-	if t then
-		t:stop()
-		t:close()
+end
+
+local function current_spans(bufnr)
+	local tick = api.nvim_buf_get_changedtick(bufnr)
+	local c = cache[bufnr]
+	if not c or c.tick ~= tick then
+		local n = api.nvim_buf_line_count(bufnr)
+		c = {
+			tick = tick,
+			list = M.spans(api.nvim_buf_get_lines(bufnr, 0, n, false)),
+		}
+		cache[bufnr] = c
 	end
-	refresh_timers[bufnr] = nil
+	return c.list
 end
 
 ---Render HTML comment block backgrounds for the drawn range. Called from
@@ -232,18 +186,7 @@ end
 ---opener extends its background over the whole region (result text,
 ---pitel:ui subsection) up to its closer.
 function M.render(ns, bufnr, start_row, end_row)
-	local tick = api.nvim_buf_get_changedtick(bufnr)
-	local n = api.nvim_buf_line_count(bufnr)
-	local c = cache[bufnr]
-	local action = M._span_decision(c, tick, n)
-	if action == "first" then
-		rebuild_spans(bufnr)
-		c = cache[bufnr]
-	elseif action == "defer" then
-		schedule_spans(bufnr)
-	end
-
-	for _, s in ipairs(c.list) do
+	for _, s in ipairs(current_spans(bufnr)) do
 		local srow, erow, ctype, lstart, lend = s[1], s[2], s[3], s[4], s[5]
 		if erow > start_row and srow < end_row then
 			-- Clamp to the drawn range: ephemeral marks do not survive the

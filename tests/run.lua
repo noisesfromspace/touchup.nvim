@@ -319,63 +319,34 @@ ok(
 commentblocks.clear(0)
 ok(true, "clear(0) does not throw")
 
--- span cache decision (build once, defer rebuild to idle, like the tree cache)
-ok(commentblocks._span_decision(nil, 1, 10) == "first", "no cached spans -> build now")
-ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 10) == "reuse", "unchanged -> reuse")
-ok(commentblocks._span_decision({ tick = 1, n = 10 }, 2, 10) == "defer", "tick changed -> defer")
-ok(commentblocks._span_decision({ tick = 1, n = 10 }, 1, 11) == "defer", "line count changed -> defer")
-
--- A deferred rebuild only takes effect once it is drawn: ephemeral marks
--- live for one redraw, and on_win only runs on a redraw. The idle rebuild
--- must therefore schedule a redraw, or a streamed tool region stays
--- unpainted until the user interacts with the buffer.
+-- Rendering after an edit must use current spans immediately. Regression for
+-- the old idle cache, which deliberately served stale regions for 1.5 seconds.
 do
 	local api = vim.api
 	local orig_set = api.nvim_buf_set_extmark
-	local orig_redraw = api.nvim__redraw
-	local redraws = {}
-	api.nvim_buf_set_extmark = function()
+	local marks = {}
+	api.nvim_buf_set_extmark = function(_, _, row, _, opts)
+		marks[#marks + 1] = { row = row, end_row = opts.end_row }
 		return 0
-	end
-	api.nvim__redraw = function(opts)
-		redraws[#redraws + 1] = opts
 	end
 
 	local buf = api.nvim_create_buf(false, true)
-	vim.bo[buf].filetype = "markdown"
-	api.nvim_buf_set_lines(buf, 0, -1, false, {
-		"# @assistant",
-		'<!-- pitel:tool {"id":"w1","name":"write"} -->',
-		"ok",
-		"<!-- /pitel:tool -->",
-	})
-	commentblocks.render("ns", buf, 0, 4) -- first: build synchronously
-	ok(#redraws == 0, "first span build does not redraw")
+	api.nvim_buf_set_lines(buf, 0, -1, false, { "plain" })
+	commentblocks.render("ns", buf, 0, 1)
+	ok(#marks == 0, "initial plain text has no comment marks")
 
-	api.nvim_buf_set_lines(buf, -1, -1, false, { "", "# @user" }) -- bump tick
-	commentblocks.render("ns", buf, 0, 6)
-	ok(#redraws == 0, "defer serves stale spans without an immediate redraw")
+	api.nvim_buf_set_lines(buf, 0, -1, false, { "<!-- pitel:thinking", "now", "-->" })
+	commentblocks.render("ns", buf, 0, 3)
+	ok(#marks == 2 and marks[1].row == 0 and marks[1].end_row == 3, "edited comment renders immediately")
 
-	vim.wait(1700) -- idle window (IDLE_MS=1500) elapses, rebuild fires
-	ok(#redraws > 0, "idle span rebuild triggers a redraw")
-	ok(
-		redraws[1] and redraws[1].buf == buf and redraws[1].valid == false,
-		"idle span rebuild forces a full redraw (valid=false)"
-	)
+	api.nvim_buf_set_lines(buf, 0, -1, false, { "plain again" })
+	marks = {}
+	commentblocks.render("ns", buf, 0, 1)
+	ok(#marks == 0, "removed comment stops rendering immediately")
 
 	commentblocks.clear(buf)
 	api.nvim_buf_set_extmark = orig_set
-	api.nvim__redraw = orig_redraw
 end
-
--- ---------------------------------------------------------------------------
--- tree cache decision (parse once per change, defer re-parse to idle)
--- ---------------------------------------------------------------------------
-suite("tree cache")
-local init = require("touchup")
-ok(init._tree_decision(nil, 1) == "first", "no cached tree -> parse now")
-ok(init._tree_decision({ tick = 1 }, 1) == "reuse", "unchanged tick -> reuse the tree")
-ok(init._tree_decision({ tick = 1 }, 2) == "defer", "changed tick -> serve stale + reparse on idle")
 
 -- ---------------------------------------------------------------------------
 -- enter (smart_enter callback)
